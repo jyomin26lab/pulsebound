@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import { freshState, buyUpgrade, damageEnemy, enemyHealth, judgeTiming, restoreState, offlineReward, estimateTempo, beatAction, actionOutcome } from './dist/core.mjs';
+const s = freshState(1000);
+assert.equal(buyUpgrade(s, 'power'), false);
+assert.equal(damageEnemy(s, 100), 1);
+assert.equal(s.stage, 2);
+assert.equal(s.hp, enemyHealth(2) - 10);
+assert.equal(s.coins, 0.05);
+const idle = freshState();
+idle.hp = 1;
+for (let frame = 0; frame < 51; frame++) damageEnemy(idle, 0.02);
+assert.equal(idle.kills, 1, 'Les dégâts automatiques fractionnaires doivent achever un adversaire.');
+assert.ok(idle.hp > 0);
+s.coins = 60;
+assert.equal(buyUpgrade(s, 'echo'), true);
+assert.equal(s.coins, 55);
+assert.equal(buyUpgrade(s, 'invalid'), false);
+assert.equal(judgeTiming(1.02, 120).grade, 'perfect');
+assert.equal(judgeTiming(1.12, 120).grade, 'good');
+assert.equal(judgeTiming(1.24, 120).grade, 'miss');
+assert.equal(judgeTiming(1.12, 120, 0, 100).grade, 'perfect');
+assert.equal(beatAction(6), 'punch');
+assert.equal(beatAction(7), 'dodge');
+assert.equal(beatAction(15), 'dodge');
+assert.equal(beatAction(-1), 'punch');
+assert.equal(actionOutcome('dodge','dodge','perfect',2).guard,3);
+assert.equal(actionOutcome('dodge','dodge','good',2).riposte,true);
+assert.equal(actionOutcome('punch','punch','perfect',3,true).damageMultiplier,1.6);
+assert.equal(actionOutcome('punch','dodge','perfect',2).guard,1);
+assert.equal(actionOutcome('none','dodge','miss',1).staggered,true);
+assert.equal(actionOutcome('none','dodge','miss',1).guard,3);
+assert.equal(restoreState({ ...s, dodges: undefined }).dodges,0);
+assert.equal(restoreState({ ...s, stage: -5, hp: NaN }).stage, 1);
+assert.equal(restoreState({ ...s, upgrades: { echo: -4 } }).upgrades.echo, 0);
+s.savedAt = 0;
+assert.equal(offlineReward(s, 3600_000).reward, 720);
+s.savedAt = 0;
+assert.equal(offlineReward(s, 24 * 3600_000).seconds, 8 * 3600);
+for (const bpm of [87, 112, 120, 144]) {
+  const rate = 11025, samples = new Float32Array(rate * 30);
+  for (let beat = 0.13; beat < 30; beat += 60 / bpm) {
+    const start = Math.round(beat * rate);
+    for (let j = 0; j < 500 && start + j < samples.length; j++) samples[start + j] += Math.sin(j * 0.1) * Math.exp(-j / 75);
+  }
+  const result = estimateTempo(samples, rate);
+  assert.ok(result, `No tempo for ${bpm}`);
+  assert.ok(Math.abs(result.bpm - bpm) < 1, `Tempo ${bpm} detected as ${result.bpm}`);
+  assert.ok(Math.abs(result.offset - 0.13) < 0.04, `Offset ${result.offset}`);
+}
+assert.equal(estimateTempo(new Float32Array(11025 * 8), 11025), null);
+console.log('Pulsebound: combat, achats, timing, sauvegarde, absence et détection BPM vérifiés.');

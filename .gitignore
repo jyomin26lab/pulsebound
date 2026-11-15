@@ -1,0 +1,9 @@
+# Le jeu et ses ressources dans dist/ font partie des sources.
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+.sites-runtime/

@@ -1,2 +1,52 @@
-# pulsebound
-Pulsebound — jeu de combat rythmique, dojo évolutif,sprites et Web Audio.
+# Pulsebound — Midnight Dojo
+
+[Jouer à Pulsebound](https://pulsebound-rhythm-dojo.noualexandre26.chatgpt.site) · [Dépôt GitHub](https://github.com/jyomin26lab/pulsebound)
+
+Jeu incrémental musical en JavaScript/Web Audio, sans dépendances. Nova frappe un sac dans un dojo nocturne orange en illustration géométrique. Les recrues, techniques et transmissions restent à droite sur ordinateur, sous la session sur mobile.
+
+## Jouer
+
+Node.js 20+ : lancer node serve.mjs, puis ouvrir http://127.0.0.1:4173.
+
+Avant de commencer, composer sa playlist et écouter un titre, puis choisir **Pulsation régulière** ou **Freestyle** et Jouer, juste à côté du bouton Écouter. D / F / Espace, le sac ou le grand repère déclenchent une frappe. Les améliorations sont en icônes au-dessus de la boutique.
+
+En mode rythmique, les prochains coups défilent vers le grand repère fixe : frapper à leur arrivée. La précision construit le combo et le Flow ; les enchaînements de 8/16/32/64/128 coups ont leur retour visuel et sonore. En Freestyle, frapper librement, sans jugement de tempo ni notes imposées. Les gains sont pondérés par le temps couvert pour limiter l’avantage du spam ou des chansons très rapides.
+
+## Musique et calage
+
+- Ajouter plusieurs fichiers, déplacer les titres par glisser-déposer ou flèches, retirer un son et annuler le dernier retrait. La lecture enchaîne les titres ; la boucle est facultative.
+- Copies audio, liste, ordre, sélection, analyse et réglages restent dans IndexedDB, sur **ce navigateur et cette origine**. Aucun fichier musical n’est envoyé au serveur. Effacer le stockage du navigateur supprime ces copies. Les fichiers d’origine restent intacts.
+- Formats selon les codecs du navigateur : MP3, WAV, OGG, M4A, FLAC, AAC, Opus ; 5 secondes à 20 minutes, 80 Mo par son. Les trois originaux synthétiques durent deux minutes. Une liste vide permet de jouer sans musique.
+- L’analyse complète calcule attaques graves/médiums/aigus, temps suivis et forme d’onde. Le BPM de départ est estimé sur 90 secondes au maximum ; le suivi et les attaques couvrent tout le fichier. Le résultat versionné est conservé avec le son, sans recalcul à chaque partie.
+- **Guide de synchronisation** : écoute, clic, proposition sur 6 à 8 tapes, corrections de 20 ms. Le guide génère une pulsation régulière ; l’éditeur avancé conserve la forme d’onde, les lignes de beat, le zoom, le BPM, l’alignement du temps le plus proche au curseur, le décalage par 5 ms, les sections à BPM variable et l’export JSON. Le bouton au curseur conserve les temps précédents.
+- Le décalage translate aussi l’analyse automatique sans en aplatir les variations. Modifier un BPM ou ajouter une section active la grille manuelle. Fermer annule les réglages non enregistrés ; ré-analyser renouvelle le cache mais ne valide pas le nouveau calage avant Enregistrer.
+
+L’analyse est heuristique : elle ne sépare pas les instruments et ne transcrit pas toutes les notes. Les attaques très proches sont filtrées à 180 ms minimum. Lorsque la confiance est basse, les attaques détectées priment sur les temps interpolés. Mixages chargés, voix seules, rubato et demi/double tempo peuvent demander une correction. Un fichier long peut demander beaucoup de mémoire au décodage. Une erreur d’analyse laisse la grille manuelle utilisable.
+
+## Progression et ressenti
+
+Frappes et sacs brisés rapportent des pièces. Disciples, adeptes et maîtres produisent automatiquement. Paliers à 10/25/50/100 recrues, sacs renforcés tous les cinq niveaux, succès et transmission après la série 20 et 12 000 pièces gagnés dans l’école. Le Flow dure 32 temps et se fige en pause. Voir GAMEPLAY.md.
+
+Les impacts PCM superposent attaque, grain et grave : trois variantes normales, trois critiques, légère variation de hauteur et limite de voix simultanées. Musique et impacts ont leurs volumes indépendants. Le décor est légèrement flouté dans un cache redessiné au chargement/redimensionnement ; personnage, sac et UI restent nets. La réduction des mouvements est respectée.
+
+Les disciples rapportent des pièces pendant huit heures d’absence au maximum. La récompense est créditée et sauvegardée avant la fenêtre stylisée de retour, pour éviter de la toucher deux fois en rechargeant. La progression est dans localStorage et s’exporte depuis les réglages ; cet export n’inclut pas les fichiers audio.
+
+## Vérifications
+
+Lancer chacun des douze scripts Node : check.mjs, check-rhythm.mjs, check-audio-clock.mjs, check-audio-transport.mjs, check-beat-analysis.mjs, check-progression.mjs, check-playlist.mjs, check-song-chart.mjs, check-mobile-audio.mjs, check-combat-controls.mjs, check-friendly.mjs, check-income.mjs. Ils couvrent aussi les revenus directs, le calage sans intro vide et l’intégrité des neuf PNG séparés. simulate-progression.mjs reproduit la simulation économique détaillée dans UX-PROGRESSION.md.
+
+Ils couvrent économie, migration, absence, Flow, DSP, pause/reprise/seek/fin, attaques irrégulières, silence, suivi des beats et changements de tempo, cartes manuelles, stockage de playlist/calage, annulation et enveloppes SFX. Les essais navigateur couvrent import multiple, cache après rechargement, titre suivant automatique, éditeur, lecture, inputs et affichage 320/390 px sans débordement. Ils ne mesurent pas la latence physique ni la transcription sur tous les morceaux.
+
+Servir dist/ pour le déploiement statique. AUDIO-ARCHITECTURE.md décrit les modules, RHYTHM.md la méthode, UI-ART.md les icônes et ART-DIRECTION.md les illustrations. Les polices distantes sont facultatives.
+
+## Correctif mobile
+
+L’import et la sélection préparent le contexte audio sans appeler resume. Seul le geste Jouer/Commencer demande la lecture, avec une attente bornée de 2,5 secondes et un message persistant en cas de refus. Le son interrompu par iOS met le transport en pause. Un bouton Jouer est accessible en haut du menu mobile. Lecture des fichiers, décodage et stockage ont des délais limites ; l’import peut être annulé, sans retirer les titres déjà ajoutés. Sur iPhone, sélectionner le fichier depuis Fichiers ; télécharger au préalable les fichiers iCloud et utiliser Safari si le navigateur intégré de ChatGPT refuse le sélecteur ou la lecture. Aucun essai sur iPhone physique n’a été réalisé. Le test check-mobile-audio.mjs simule un contexte qui refuse ou ne termine pas resume, un M4A sans MIME, les erreurs, délais et annulations.
+
+## Frappes Auto et techniques
+
+Auto suit la carte des notes pendant la lecture, dans les deux modes. Il se fige en pause, dans le menu ou en arrière-plan. Son curseur lit l’horloge audio : une chute de framerate saute les notes anciennes sans rafale. Auto rapporte dégâts/pièces et charge le Flow comme une frappe Bien ; il ne compte pas comme une frappe manuelle, un Parfait ou un record de combo. Une entrée manuelle coupe Auto. Le bouton reste disponible pour reprendre la lecture.
+
+Les frappes alternent jab, direct, pied et uppercut selon une séquence de huit notes ; les icônes anticipent ces coups. Pied et Uppercut préparent une seule prochaine frappe. Danse règle les pas entre les attaques, avec une phase calculée depuis les beats locaux, y compris aux changements de tempo. Les actions interrompent la danse. Les neuf poses sont désormais des PNG individuels dans dist/sprites/, alignés par un manifeste et dessinés entiers. Les poses de danse sourient légèrement. Voir SPRITES-INDIVIDUELS.md. Les anciennes planches restent des références historiques et ne sont plus chargées par le rendu. La réduction des mouvements désactive la danse et les déplacements décoratifs.
+
+Le score a été retiré. Les pièces et le revenu par seconde sont au premier plan. Le bandeau supérieur reste visible pendant le défilement, y compris devant la boutique sur mobile. Les formations versent directement 1/6/40 pièces par seconde de base par disciple/adepte/maître, sans attendre un sac brisé. Les paliers, sceaux et Flow augmentent ces revenus. Les chiffres flottants montrent les pièces reçues. Les trophées ont une notification non bloquante ; les particules et lumières ambiantes restent derrière l’action. UX-PROGRESSION.md détaille coûts, progression simulée et pistes à valider avec des joueurs.

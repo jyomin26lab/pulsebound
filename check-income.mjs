@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {freshState,autoIncome,earnPassive,buyUpgrade,offlineReward,restoreState,upgradeCost} from './dist/core.mjs';
+const s=freshState(0);
+assert.equal(autoIncome(s),.1);
+assert.equal(earnPassive(s,50),5);
+assert(buyUpgrade(s,'echo'));
+assert.equal(s.coins,0);
+assert.equal(autoIncome(s),.2);
+assert.equal(upgradeCost(s,'echo'),5.75);
+for(let i=0;i<600;i++)earnPassive(s,1/60);
+assert.ok(Math.abs(s.coins-2)<1e-9);
+assert.equal(offlineReward(s,1250).reward,.25);
+assert.equal(offlineReward(s,1250).reward,0);
+assert.equal(restoreState(s).coins,s.coins);
+console.log('Revenus, centimes, premier achat, prix suivant et sauvegarde vérifiés.');
