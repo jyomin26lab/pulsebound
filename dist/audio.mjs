@@ -36,12 +36,16 @@ export class Soundtrack {
       this.conductor=new BeatConductor(this.clock);
       this.master = this.ctx.createGain();
       this.master.gain.value = 1;
-      this.musicGain=this.ctx.createGain();this.musicGain.gain.value=this.volume;this.musicGain.connect(this.master);
-      this.effectsGain=this.ctx.createGain();this.effectsGain.gain.value=this.sfxVolume;this.effectsGain.connect(this.master);
+      // Music goes through a duck gain so each hit can dip it for a split second.
+      this.duck=this.ctx.createGain();this.duck.gain.value=1;this.duck.connect(this.master);
+      this.musicGain=this.ctx.createGain();this.musicGain.gain.value=this.volume;this.musicGain.connect(this.duck);
+      // Effects skip the music compressor: a loud mastered song kept it engaged and squashed every hit down to the music's level.
+      const sfxLimiter=this.ctx.createDynamicsCompressor();sfxLimiter.threshold.value=-2;sfxLimiter.ratio.value=20;sfxLimiter.connect(this.ctx.destination);
+      this.effectsGain=this.ctx.createGain();this.effectsGain.gain.value=this.sfxVolume;this.effectsGain.connect(sfxLimiter);
       // Room reverb on effects only (the player's music stays dry); the send follows the effects volume.
       this.reverb=this.ctx.createConvolver();const impulse=reverbImpulse(this.ctx.sampleRate),room=this.ctx.createBuffer(2,impulse[0].length,this.ctx.sampleRate);
       impulse.forEach((channel,index)=>room.getChannelData(index).set(channel));this.reverb.buffer=room;
-      this.reverbSend=this.ctx.createGain();this.reverbSend.gain.value=.2;this.effectsGain.connect(this.reverbSend).connect(this.reverb).connect(this.master);
+      this.reverbSend=this.ctx.createGain();this.reverbSend.gain.value=.2;this.effectsGain.connect(this.reverbSend).connect(this.reverb).connect(sfxLimiter);
       const compressor = this.ctx.createDynamicsCompressor();
       compressor.threshold.value = -12;
       compressor.ratio.value = 5;
@@ -241,19 +245,26 @@ export class Soundtrack {
     const now=this.ctx.currentTime,tier=comboTier(combo);
     const source=this.ctx.createBufferSource();source.buffer=this.impactBanks[this.impactStyle][(perfect?6:0)+(critical?3:0)+(this.impactVariant++%3)];
     if(source.playbackRate)source.playbackRate.value=1+(Math.random()-.5)*.07+tier*.025;// the impact climbs in pitch as the combo grows
-    let out=this.effectsGain;
-    if(this.ctx.createStereoPanner){const pan=this.ctx.createStereoPanner();pan.pan.value=(Math.random()-.5)*.36;pan.connect(this.effectsGain);out=pan;}
-    source.connect(out);source.onended=()=>{source.disconnect();if(out!==this.effectsGain)out.disconnect();this.voices.delete(source);};this.voices.add(source);source.start();
-    // Sub thump under every hit, heavier with the combo.
-    const thump=this.tone(now,critical?95:120,critical?.3:.16,'sine',(critical?.5:.22)*(1+tier*.25),this.effectsGain);thump.frequency.exponentialRampToValueAtTime(38,now+(critical?.26:.14));
+    const boost=this.ctx.createGain();boost.gain.value=critical?1.7:perfect?1.55:1.3;let out=boost;
+    if(this.ctx.createStereoPanner){const pan=this.ctx.createStereoPanner();pan.pan.value=(Math.random()-.5)*.36;boost.connect(pan).connect(this.effectsGain);}else boost.connect(this.effectsGain);
+    source.connect(out);source.onended=()=>{source.disconnect();boost.disconnect();this.voices.delete(source);};this.voices.add(source);source.start();
+    // Slap in the 2-5 kHz range: the part of a hit that no song's kick or bass masks, so it cuts through.
+    this.crack(now,perfect?.55:.35,'bandpass',perfect?3600:2800,.035);
+    // Kick-like thump under every hit, heavier with the combo.
+    const thump=this.tone(now,critical?110:150,critical?.32:.18,'sine',(critical?.65:.38)*(1+tier*.2),this.effectsGain);thump.frequency.exponentialRampToValueAtTime(40,now+(critical?.26:.13));
+    // Duck the music for a split second so the hit owns that instant, then let it swell back.
+    const duck=this.duck.gain;duck.cancelScheduledValues(now);duck.setValueAtTime(duck.value,now);duck.linearRampToValueAtTime(critical?.4:.6,now+.008);duck.setTargetAtTime(1,now+.03,.07);
     if(critical)this.accent(now,.55);
+  }
+  crack(time,level,type,frequency,duration){
+    const source=this.ctx.createBufferSource(),filter=this.ctx.createBiquadFilter(),gain=this.ctx.createGain();
+    source.buffer=this.noise;filter.type=type;filter.frequency.value=frequency;gain.gain.setValueAtTime(level,time);gain.gain.exponentialRampToValueAtTime(.001,time+duration);
+    source.connect(filter).connect(gain).connect(this.effectsGain);source.start(time);source.stop(time+duration+.01);source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();};
   }
   /** Boom + bright crack + a short swell of the room reverb, for crits and big moments. */
   accent(time,power=.5){
     const boom=this.tone(time,70,.6,'sine',.4*power+.1,this.effectsGain);boom.frequency.exponentialRampToValueAtTime(32,time+.5);
-    const crack=this.ctx.createBufferSource(),filter=this.ctx.createBiquadFilter(),gain=this.ctx.createGain();
-    crack.buffer=this.noise;filter.type='highpass';filter.frequency.value=2400;gain.gain.setValueAtTime(.3*power,time);gain.gain.exponentialRampToValueAtTime(.001,time+.09);
-    crack.connect(filter).connect(gain).connect(this.effectsGain);crack.start(time);crack.stop(time+.1);crack.onended=()=>{crack.disconnect();filter.disconnect();gain.disconnect();};
+    this.crack(time,.3*power,'highpass',2400,.09);
     const send=this.reverbSend.gain;send.cancelScheduledValues(time);send.setValueAtTime(send.value,time);send.linearRampToValueAtTime(.2+.4*power,time+.03);send.setTargetAtTime(.2,time+.12,.25);
   }
   evade() {
