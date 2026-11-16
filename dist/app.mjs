@@ -44,7 +44,7 @@ const welcome=offlineReward(state);
 try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch{storageAvailable=false;}
 const library=new MusicLibrary();
 let sessionMenuOpen=true,libraryLoaded=false,trackLoading=false,importing=false,loadedId=null,selectionSerial=0,advanceBusy=false,removedTrack=null,pendingWelcome=null,lastFreeHit=NaN;
-let combo=0,lastInput=-Infinity,toastTimeout,momentTimeout,lastActionSongTime=-1;
+let combo=0,perfectRun=0,lastBreakAt=0,lastInput=-Infinity,toastTimeout,momentTimeout,lastActionSongTime=-1;
 const flow=new FlowMeter();
 let transportBusy=false,importedTitle='',lastPaint=0,lastFrame=performance.now(),autoFlashAt=0;
 let importController=null;
@@ -81,7 +81,7 @@ function clearNotes(){
   for(const node of queueNodes.values())node.remove();queueNodes.clear();
 }
 function resetCombo(){
-  combo=0;lastBeatPulse=null;lastFreeHit=NaN;clearNotes();rebuildRhythm();
+  combo=0;perfectRun=0;lastBeatPulse=null;lastFreeHit=NaN;clearNotes();rebuildRhythm();
   if(audio.time()<lastActionSongTime-.05){resolved.clear();lastActionSongTime=-1;flow.lastBeat=null;}
   const clock=audio.audibleTime()-settings.latency/1000,nearest=rhythm.nearest(clock);
   autoStriker.reset(rhythm,clock);
@@ -327,14 +327,24 @@ function closeTrophy(){clearTimeout(trophyTimer);$('#trophy-popup').hidden=true;
 $('#close-trophy').addEventListener('click',closeTrophy);
 function dealDamage(amount){
   const previousStage=state.highestStage;
-  const before=state.bosses,count=damageEnemy(state,amount);if(!count)return 0;
-  pulse($('.wallet'),'rewarding');scene.celebrate('victory');
+  const before=state.bosses,coinsBefore=state.totalCoins,count=damageEnemy(state,amount);if(!count)return 0;
+  // The school can break several bags per second late in a run: the loud part (sound, big number, buzz) plays at most 4 times a second.
+  const breakTime=performance.now(),loud=breakTime-lastBreakAt>250;if(loud)lastBreakAt=breakTime;
+  pulse($('.wallet'),'rewarding');scene.celebrate('victory',breakTime,loud?'+'+format(state.totalCoins-coinsBefore)+' ◈':'');
+  if(loud){audio.bagBreak();buzz([20,30,40]);}
   if(state.bosses>before){showMoment('ÉPREUVE ACCOMPLIE','LE SAC CÈDE.','Ton école ouvre une nouvelle voie.','boss');audio.cue('boss');offerBoons();}
   else if(state.stage%5===0)showMoment('ÉPREUVE · SÉRIE '+state.stage,'SAC RENFORCÉ','Une résistance supérieure. Une récompense ×4.','boss');
   const unlocked=Object.values(FORMS).filter(form=>form.stage>previousStage && form.stage<=state.highestStage);
   if(unlocked.length){showMoment('NOUVELLE TECHNIQUE',unlocked.map(form=>form.label).join(' + ').toUpperCase(),'Nova l’ajoute à ses enchaînements.','flow');scene.celebrate('flow');audio.cue('milestone');}
   $('#accessible-feedback').textContent='Sac brisé ! Série '+state.stage+'. '+format(state.coins)+' pièces.';
   award();save();return count;
+}
+// Phone vibration on hits; follows the same switches as the visual effects.
+function buzz(pattern){if(settings.intense&&scene.motion)navigator.vibrate?.(pattern);}
+// Losing a real combo (8+) is marked, so the streak feels worth protecting.
+function breakCombo(){
+  if(combo>=8){scene.comboBreak();audio.comboBreak();feedback('COMBO PERDU','×'+combo+' · REPRENDS LE RYTHME','miss');buzz(60);}
+  combo=0;perfectRun=0;flow.miss();
 }
 function feedback(label,subline,grade='perfect'){
   const element=$('#combat-feedback');element.className=`combat-feedback ${grade}`;element.replaceChildren(document.createTextNode(label));
@@ -375,6 +385,7 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
   if(judgment.grade!=='miss'){
     if(!automated)sessionHits++;
     combo++;if(!automated){state.bestCombo=Math.max(combo,state.bestCombo);song.combo=Math.max(song.combo,combo);}if(judgment.grade==='perfect')state.perfects++;
+    perfectRun=judgment.grade==='perfect'&&!automated?perfectRun+1:0;
     const hit=hitDamage(state,judgment.grade,combo),damage=Math.max(1,Math.round(hit.damage*weight*(boost?2.5:1)));
     const coinsEarned=0.01;addCoins(state,coinsEarned);
     const count=dealDamage(damage);flow.hit(judgment.grade,interval);
@@ -382,11 +393,11 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
     const move=learnedMove(technique,combo,state.highestStage,judgment.event?.index??state.hits-1);
     scene.animate('hero',move,now,Math.max(210,Math.min(420,interval*850)));scene.strikeBag(now,hit.critical?1.5:1);
     scene.impact({damage:'+'+coinGain.format(coinsEarned)+' ◈',critical:hit.critical,combo,now:now+45});
-    feedback(hit.critical?'CRITIQUE':automated?'AUTO':free?'IMPACT':judgment.grade==='perfect'?'PARFAIT':'BIEN',count?'SAC BRISÉ · SÉRIE '+state.stage:(FORMS[move]?.label||STYLE_MOVES[move]||TECHNIQUES[technique].label).toUpperCase()+' · +'+coinGain.format(coinsEarned)+' PIÈCE'+(coinsEarned<2?'':'S'),hit.critical?'critical':judgment.grade);
-    audio.hit(judgment.grade,hit.critical,combo);pulse($('.combo-badge'),'bump');pulse($('#strike-button'),'impact');award();
+    feedback(hit.critical?'CRITIQUE':automated?'AUTO':free?'IMPACT':judgment.grade==='perfect'?'PARFAIT'+(perfectRun>1?' ×'+perfectRun:''):'BIEN',count?'SAC BRISÉ · SÉRIE '+state.stage:(FORMS[move]?.label||STYLE_MOVES[move]||TECHNIQUES[technique].label).toUpperCase()+' · +'+coinGain.format(coinsEarned)+' PIÈCE'+(coinsEarned<2?'':'S'),hit.critical?'critical':judgment.grade);
+    audio.hit(judgment.grade,hit.critical,combo);if(!automated)buzz(hit.critical?30:10);pulse($('.combo-badge'),'bump');pulse($('#strike-button'),'impact');award();
     if(!free&&!automated&&[8,16,32,64,128].includes(combo)){showMoment('ENCHAÎNEMENT SANS RUPTURE','COMBO ×'+combo,combo>=32?'LE DOJO SUIT TON FLOW.':'CHAQUE COUP TROUVE SA PLACE.','flow');audio.cue('milestone');scene.celebrate('flow');}
   }else{
-    combo=0;flow.miss();scene.animate('hero','punch',now);feedback('HORS TEMPO','VISE LE GRAND REPÈRE','miss');
+    breakCombo();scene.animate('hero','punch',now);feedback('HORS TEMPO','VISE LE GRAND REPÈRE','miss');
   }
   $('#timing-text').textContent=automated?'AUTO · SYNCHRO':free?'FRAPPE LIBRE':(judgment.grade==='perfect'?'PARFAIT':judgment.error<0?'UN PEU TÔT':'UN PEU TARD')+' · '+Math.round(Math.abs(judgment.error))+' MS';
   updateUI();
@@ -653,7 +664,7 @@ function frame(now){
     if(audio.playing&&!sessionMenuOpen&&!$$('dialog[open]').length&&settings.rhythmMode==='tempo'){
       let expired;
       while((expired=rhythm.event(lastExpired+1))&&clock>expired.time+rhythm.windows(expired,state.upgrades.focus).good){
-        if(!resolved.has(expired.index)){song.missed++;judgeFlash('miss');if(combo>0){combo=0;flow.miss();$('#timing-text').textContent='REPRENDS LE FLOW';}}
+        if(!resolved.has(expired.index)){song.missed++;judgeFlash('miss');if(combo>0){breakCombo();$('#timing-text').textContent='REPRENDS LE FLOW';}}
         resolved.delete(expired.index-4);lastExpired++;
       }
     }

@@ -17,7 +17,7 @@ export class DojoScene {
     this.poses=Object.fromEntries(Object.entries(HERO_SPRITES).map(([id, sprite])=>[id, artwork('./sprites/'+sprite.file)]));
     this.motion=!matchMedia('(prefers-reduced-motion: reduce)').matches;this.intense=true;
     this.actions={hero:{kind:'idle',time:0},enemy:{kind:'idle',time:0}};
-    this.particles=[];this.floats=[];this.shakeAt=-1000;this.shakePower=0;this.holdUntil=0;this.holdTime=0;this.zoomAt=-1000;this.zoomPower=0;this.flashAt=-1000;this.rings=[];
+    this.particles=[];this.floats=[];this.shakeAt=-1000;this.shakePower=0;this.holdUntil=0;this.holdTime=0;this.zoomAt=-1000;this.zoomPower=0;this.flashAt=-1000;this.breakAt=-1000;this.rings=[];
     this.bagStrikes=[];
     this.resize();new ResizeObserver(()=>this.resize()).observe(canvas);
   }
@@ -53,7 +53,10 @@ export class DojoScene {
       if(critical)this.flashAt=now;
     }
   }
-  celebrate(kind='victory',now=performance.now()){
+  comboBreak(now=performance.now()){this.breakAt=now;}
+  celebrate(kind='victory',now=performance.now(),text=''){
+    // A broken bag shows its reward in big gold digits and freezes the pose a beat longer (hit-stop on the kill).
+    if(text){this.floats.push({text,x:this.layout.bagX,y:this.height*.3,time:now,color:'#ffd36b',large:true});this.floats=this.floats.slice(-12);if(this.motion&&this.intense){this.holdTime=now;this.holdUntil=now+120;}}
     this.burst(this.width*.5,this.height*.4,kind==='flow'?'#ffe2a0':'#f9bb7c',kind==='flow'?160:90,now);
     if(this.motion&&this.intense){this.shakeAt=now;this.shakePower=kind==='flow'?18:8;this.zoomAt=now;this.zoomPower=kind==='flow'?.14:.06;this.ring(this.width*.5,this.height*.4,'#ffe2a0',2.2,now);}
   }
@@ -185,6 +188,7 @@ export class DojoScene {
     this.bag(now,boss);this.fighter(w*(this.mobile?.18:w<600?.34:.30),this.mobile?h*.34:y,height,'hero',poseTime,preparation,dance,musicalBeat);
     this.effects(now);c.restore();
     // Single short, soft white flash on critical hits only (kept well under photosensitivity thresholds).
+    const b=(now-this.breakAt)/350;if(this.motion&&this.intense&&b>=0&&b<1){const edge=c.createRadialGradient(w*.5,h*.5,Math.min(w,h)*.3,w*.5,h*.5,Math.max(w,h)*.75);edge.addColorStop(0,'rgba(216,67,59,0)');edge.addColorStop(1,`rgba(216,67,59,${.55*(1-b)})`);c.fillStyle=edge;c.fillRect(0,0,w,h);}
     const f=(now-this.flashAt)/110;if(this.motion&&this.intense&&f>=0&&f<1){c.fillStyle=`rgba(255,250,235,${.4*(1-f)})`;c.fillRect(0,0,w,h);}
   }
 }

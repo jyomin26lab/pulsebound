@@ -272,6 +272,16 @@ export class Soundtrack {
     const osc = this.tone(this.ctx.currentTime, 800, .12, 'sine', .045, this.master);
     osc.frequency.exponentialRampToValueAtTime(1600, this.ctx.currentTime + .1);
   }
+  // Unpitched on purpose: these play over the player's own music, in any key.
+  bagBreak(){
+    if(!this.ctx||this.ctx.state!=='running'||!this.sfx)return;const t=this.ctx.currentTime;
+    this.accent(t,.4);this.crack(t,.45,'bandpass',900,.12);
+    for(const [i,hz]of [2637,3520].entries())this.tone(t+.05+i*.06,hz,.09,'sine',.07,this.effectsGain);// coin ting
+  }
+  comboBreak(){
+    if(!this.ctx||this.ctx.state!=='running'||!this.sfx)return;const t=this.ctx.currentTime;
+    const fall=this.tone(t,260,.3,'sawtooth',.1,this.effectsGain);fall.frequency.exponentialRampToValueAtTime(55,t+.28);this.crack(t,.25,'lowpass',500,.15);
+  }
   cue(kind){
     if(!this.ctx||this.ctx.state!=='running'||!this.sfx)return;
     const notes={purchase:[440,660,880],milestone:[440,554,660,880],boss:[220,330,440,660],flow:[220,440,660,880],prestige:[330,440,554,660,880]};
