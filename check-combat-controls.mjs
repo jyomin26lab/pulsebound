@@ -3,6 +3,7 @@ import {AutoStriker,techniqueFor,beatPosition,techniquePose,learnedMove} from '.
 // Figures are spread over the run (series 12/22/28), not all unlocked in the first minute.
 assert.equal(learnedMove('cross',0,11,1),'cross');assert.equal(learnedMove('cross',0,12,1),'leapPunch');
 assert.equal(learnedMove('kick',0,21,2),'kick');assert.equal(learnedMove('kick',0,22,2),'axeKick');assert.equal(learnedMove('kick',0,28,2),'cartwheel');
+import("./dist/scene.mjs").then(({comboTier})=>assert.deepEqual([0,7,8,15,16,31,32,63,64,500].map(comboTier),[0,0,1,1,2,2,3,3,4,4],"Paliers d’effets de combo"));
 import {RhythmMap} from './dist/rhythm.mjs';
 const map=new RhythmMap([.13,.63,1.13,1.53,1.93,2.33].map((time,index)=>({time,index,action:'punch'})));
 const auto=new AutoStriker();auto.reset(map,0);

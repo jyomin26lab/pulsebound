@@ -1,6 +1,9 @@
 import { techniquePose, STYLE_MOVES, FORMS } from './combat-controls.mjs';
 import { HERO_SPRITES } from './sprites/hero-manifest.mjs';
 import { combatLayout, spritePlacement } from './scene-layout.mjs';
+// Combo levels at 8/16/32/64: each one hits harder and shifts colour (orange, gold, cyan, pink, white).
+export const COMBO_COLORS=['#ffc58b','#ffd36b','#7ff0ff','#ff6bd6','#ffffff'];
+export function comboTier(combo){return combo>=64?4:combo>=32?3:combo>=16?2:combo>=8?1:0;}
 export class DojoScene {
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d');
@@ -38,14 +41,15 @@ export class DojoScene {
     // Contact is drawn on input. The preceding note provides the anticipation.
     this.actions[side]={kind,time:now-(attack?duration*.28:0),duration};
   }
-  impact({side='enemy',damage='',critical=false,dodge=false,now=performance.now()}={}){
-    const x=this.layout.bagX,y=this.height*.45;
-    this.burst(x,y,dodge?'#a6efff':critical?'#ffe2a0':'#ffc58b',critical?90:dodge?20:40,now);
+  impact({side='enemy',damage='',critical=false,dodge=false,combo=0,now=performance.now()}={}){
+    const x=this.layout.bagX,y=this.height*.45,tier=comboTier(combo),boost=1+tier*.5,color=COMBO_COLORS[tier];
+    this.burst(x,y,dodge?'#a6efff':critical?'#ffe2a0':'#ffc58b',Math.round((critical?90:dodge?20:40)*boost),now);
+    if(tier)this.burst(x,y,color,12*tier,now);
     if(damage)this.floats.push({text:String(damage),x,y:y-15,time:now,color:critical?'#ffe4a4':dodge?'#b9f3ff':'#fff2de',large:critical});
     this.floats=this.floats.slice(-12);
     if(this.motion&&this.intense&&!dodge){
-      this.shakeAt=now;this.shakePower=critical?16:7;this.holdTime=now;this.holdUntil=now+(critical?90:45);
-      this.zoomAt=now;this.zoomPower=critical?.12:.05;this.ring(x,y,critical?'#fff1c4':'#ffc58b',critical?1.6:1,now);
+      this.shakeAt=now;this.shakePower=(critical?16:7)*(1+tier*.35);this.holdTime=now;this.holdUntil=now+(critical?90:45);
+      this.zoomAt=now;this.zoomPower=(critical?.12:.05)+tier*.015;this.ring(x,y,critical?'#fff1c4':color,(critical?1.6:1)*(1+tier*.25),now);
       if(critical)this.flashAt=now;
     }
   }
@@ -156,7 +160,7 @@ export class DojoScene {
     this.floats=this.floats.filter(f=>now-f.time<800);
     for(const f of this.floats){const p=(now-f.time)/800;if(p<0)continue;c.save();c.globalAlpha=Math.min(1,(1-p)*3);c.fillStyle=f.color;c.shadowColor='#1a0f1c';c.shadowBlur=7;c.textAlign='center';c.font=`700 ${f.large?30:23}px "Space Grotesk",sans-serif`;c.fillText(f.text,f.x,f.y-(this.motion?p*40:0));c.restore();}
   }
-  render(now,{upcomingMove='punch',arenaVisible=true,lit=false,playing=false,beatPhase=1,preparation=0,dance=false,musicalBeat=0,flow=false,tier=0,disciples=0,boss=false}={}){
+  render(now,{upcomingMove='punch',arenaVisible=true,lit=false,playing=false,beatPhase=1,preparation=0,dance=false,musicalBeat=0,flow=false,tier=0,disciples=0,boss=false,combo=0}={}){
     this.preparedMove=upcomingMove;
     const c=this.ctx,w=this.width,h=this.height;c.clearRect(0,0,w,h);c.save();
     if(this.motion&&this.intense){
@@ -172,6 +176,9 @@ export class DojoScene {
     c.fillStyle=boss?'#41172a25':'#130d170e';c.fillRect(0,0,w,h);
     if(arenaVisible && this.welcomeDisciple){this.arrivalAt=now;this.welcomeDisciple=false;}
     this.details(tier,now);this.trainees(now,disciples,playing?musicalBeat:.5);
+    const comboLevel=comboTier(combo);
+    // The edge glow stays while the combo holds, pulsing on the beat, so the run is felt between hits too.
+    if(comboLevel&&this.motion&&this.intense){const edge=c.createRadialGradient(w*.5,h*.5,Math.min(w,h)*.35,w*.5,h*.5,Math.max(w,h)*.75),alpha=Math.round(255*Math.min(.5,.1*comboLevel*(1.25-beatPhase*.5))).toString(16).padStart(2,'0');edge.addColorStop(0,COMBO_COLORS[comboLevel]+'00');edge.addColorStop(1,COMBO_COLORS[comboLevel]+alpha);c.fillStyle=edge;c.fillRect(0,0,w,h);}
     if(flow){const glow=c.createRadialGradient(w*.5,h*.7,0,w*.5,h*.7,w*.7);glow.addColorStop(0,'#ffc16c30');glow.addColorStop(1,'#ffc16c00');c.fillStyle=glow;c.fillRect(0,0,w,h);}
     if(playing&&beatPhase<.1&&this.motion){c.fillStyle=`rgba(246,153,75,${(.1-beatPhase)*.2})`;c.fillRect(0,0,w,h);}
     const height=Math.min(h*1.12,w*.84),y=h*.12,poseTime=now<this.holdUntil?this.holdTime:now;

@@ -320,10 +320,10 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
     const technique=techniqueFor(judgment.event?.index??state.hits-1,armedTechnique);armedTechnique=null;
     const move=learnedMove(technique,combo,state.highestStage,judgment.event?.index??state.hits-1);
     scene.animate('hero',move,now,Math.max(210,Math.min(420,interval*850)));scene.strikeBag(now,hit.critical?1.5:1);
-    scene.impact({damage:'+'+coinGain.format(coinsEarned)+' ◈',critical:hit.critical,now:now+45});
+    scene.impact({damage:'+'+coinGain.format(coinsEarned)+' ◈',critical:hit.critical,combo,now:now+45});
     feedback(hit.critical?'CRITIQUE':automated?'AUTO':free?'IMPACT':judgment.grade==='perfect'?'PARFAIT':'BIEN',count?'SAC BRISÉ · SÉRIE '+state.stage:(FORMS[move]?.label||STYLE_MOVES[move]||TECHNIQUES[technique].label).toUpperCase()+' · +'+coinGain.format(coinsEarned)+' PIÈCE'+(coinsEarned<2?'':'S'),hit.critical?'critical':judgment.grade);
     audio.hit(judgment.grade,hit.critical);pulse($('.combo-badge'),'bump');pulse($('#strike-button'),'impact');award();
-    if(!free&&!automated&&[8,16,32,64,128].includes(combo)){showMoment('ENCHAÎNEMENT SANS RUPTURE','COMBO ×'+combo,combo>=32?'LE DOJO SUIT TON FLOW.':'CHAQUE COUP TROUVE SA PLACE.','flow');audio.cue('milestone');}
+    if(!free&&!automated&&[8,16,32,64,128].includes(combo)){showMoment('ENCHAÎNEMENT SANS RUPTURE','COMBO ×'+combo,combo>=32?'LE DOJO SUIT TON FLOW.':'CHAQUE COUP TROUVE SA PLACE.','flow');audio.cue('milestone');scene.celebrate('flow');}
   }else{
     combo=0;flow.miss();scene.animate('hero','punch',now);feedback('HORS TEMPO','VISE LE GRAND REPÈRE','miss');
   }
@@ -602,7 +602,7 @@ function frame(now){
     const nearest=rhythm.nearest(clock),distance=settings.rhythmMode==='tempo'&&nearest?Math.abs(nearest.time-clock):1;
     const disciples=state.upgrades.echo+state.upgrades.adept+state.upgrades.master;
     const next=rhythm.next('punch',clock),preparation=!sessionMenuOpen&&audio.playing&&settings.rhythmMode==='tempo'&&next?Math.max(0,1-(next.time-clock)/.16):0;
-    scene.render(now,{upcomingMove:next?learnedMove(techniqueFor(next.index),combo+1,state.highestStage,next.index):'punch',arenaVisible:!sessionMenuOpen,lit:state.dojoLit,playing:audio.playing,beatPhase:distance,preparation,dance:danceEnabled&&audio.playing&&!sessionMenuOpen,musicalBeat:beatPosition(audio.conductor?.beats,time,audio.bpm,audio.offset),flow:boost,tier:dojoTier(state),disciples,boss:rival(state.stage).boss});
+    scene.render(now,{combo,upcomingMove:next?learnedMove(techniqueFor(next.index),combo+1,state.highestStage,next.index):'punch',arenaVisible:!sessionMenuOpen,lit:state.dojoLit,playing:audio.playing,beatPhase:distance,preparation,dance:danceEnabled&&audio.playing&&!sessionMenuOpen,musicalBeat:beatPosition(audio.conductor?.beats,time,audio.bpm,audio.offset),flow:boost,tier:dojoTier(state),disciples,boss:rival(state.stage).boss});
     if(now-lastPaint>=100){updateUI();lastPaint=now;}
   }
   requestAnimationFrame(frame);
