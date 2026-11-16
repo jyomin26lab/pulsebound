@@ -71,10 +71,25 @@ export const BOONS={
   coins:{label:'Offrande',text:'2 minutes de revenu tout de suite (3 pièces min.)',instant:true}
 };
 export function boon(s,id){return s.boons?.[id]||0;}
-export function boonChoices(random=Math.random){
+export function boonChoices(random=Math.random,count=3){
   const ids=Object.keys(BOONS);
   for(let i=ids.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
-  return ids.slice(0,3);
+  return ids.slice(0,count);
+}
+// Seal shop: permanent perks that survive every transmission. Spending seals keeps their +20 % power.
+export const PERKS={
+  headstart:{label:'Relève assurée',text:'+5 disciples au début de chaque nouvelle école',max:3,cost:level=>level+1},
+  blessing:{label:'Bénédiction',text:'Un don durable au hasard au début de chaque nouvelle école',max:3,cost:level=>2+level*2},
+  fourth:{label:'Quatrième voie',text:'4 dons proposés au lieu de 3',max:1,cost:()=>3},
+  reroll:{label:'Seconde chance',text:'Relancer une fois chaque tirage de dons',max:1,cost:()=>2},
+  devotion:{label:'Assiduité',text:'Récompense du défi du jour ×2',max:1,cost:()=>3}
+};
+export function perk(s,id){return s.perks?.[id]||0;}
+export function sealsAvailable(s){return Math.max(0,s.seals-(s.sealsSpent||0));}
+export function perkCost(s,id){const p=PERKS[id];return !p||perk(s,id)>=p.max?Infinity:p.cost(perk(s,id));}
+export function buyPerk(s,id){
+  const cost=perkCost(s,id);if(!Number.isFinite(cost)||sealsAvailable(s)<cost)return false;
+  s.sealsSpent=(s.sealsSpent||0)+cost;s.perks[id]=perk(s,id)+1;return true;
 }
 export function applyBoon(s,id){
   if(!Object.hasOwn(BOONS,id))return false;
@@ -104,13 +119,13 @@ export function completeChallenge(s,day){
   if(s.daily.lastDone===day)return 0;
   s.daily.streak=s.daily.lastDone===previousDay(day)?s.daily.streak+1:1;s.daily.lastDone=day;
   // Five minutes of school income (5 coins minimum), +10 % per streak day up to +70 %.
-  const reward=Math.round(Math.max(5,autoIncome(s)*300)*(1+Math.min(s.daily.streak-1,7)*.1)*100)/100;
+  const reward=Math.round(Math.max(5,autoIncome(s)*300)*(1+Math.min(s.daily.streak-1,7)*.1)*(perk(s,'devotion')?2:1)*100)/100;
   addCoins(s,reward);return reward;
 }
 export function freshState(now = Date.now()) {
   return { version: 1, dojoLit: false, coins: 0, stage: 1, hp: enemyHealth(1), kills: 0,
     hits: 0, perfects: 0, dodges: 0, dodgesMissed: 0, bestCombo: 0, totalCoins: 0, totalDamage: 0,
-    runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[], grades:{}, daily:{lastDone:'',streak:0}, boons:{},
+    runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[], grades:{}, daily:{lastDone:'',streak:0}, boons:{}, perks:{}, sealsSpent:0,
     upgrades: { power: 0, echo: 0, adept:0, master:0, focus: 0, fury: 0 }, savedAt: now };
 }
 export function rival(stage){
@@ -183,11 +198,14 @@ export function claimAchievements(s){
 }
 export function dojoTier(s){return Math.min(3,(s.highestStage>=6?1:0)+(s.upgrades.echo>=10?1:0)+(s.upgrades.master>0||s.prestiges>0?1:0));}
 export function prestigeGain(s){return s.stage>=21?Math.floor(Math.sqrt(s.runCoins/12000)):0;}
-export function prestige(s,now=Date.now()){
+export function prestige(s,now=Date.now(),random=Math.random){
   const gain=prestigeGain(s);if(gain<1)return 0;
   s.seals+=gain;s.prestiges++;s.coins=0;s.runCoins=0;s.stage=1;s.hp=enemyHealth(1);s.savedAt=now;
   for(const key of Object.keys(UPGRADE_INFO))s.upgrades[key]=0;
   s.boons={};s.upgrades.power=1;if(s.seals>=3)s.upgrades.echo=1;
+  s.upgrades.echo=Math.max(s.upgrades.echo,perk(s,'headstart')*5);
+  const lasting=Object.keys(BOONS).filter(id=>!BOONS[id].instant);
+  for(let i=0;i<perk(s,'blessing');i++)applyBoon(s,lasting[Math.floor(random()*lasting.length)]);
   return gain;
 }
 export function currentGoal(s){
@@ -229,6 +247,8 @@ export function restoreState(raw, now = Date.now()) {
   if(raw.grades&&typeof raw.grades==='object')for(const [id,grade]of Object.entries(raw.grades).slice(0,1000))if(id.length<=200&&GRADES.includes(grade))s.grades[id]=grade;
   if(typeof raw.daily?.lastDone==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(raw.daily.lastDone)&&Number.isInteger(raw.daily.streak))s.daily={lastDone:raw.daily.lastDone,streak:Math.max(0,Math.min(100000,raw.daily.streak))};
   if(raw.boons&&typeof raw.boons==='object')for(const id of Object.keys(BOONS))if(Number.isInteger(raw.boons[id])&&raw.boons[id]>0)s.boons[id]=Math.min(1000,raw.boons[id]);
+  if(raw.perks&&typeof raw.perks==='object')for(const id of Object.keys(PERKS))if(Number.isInteger(raw.perks[id])&&raw.perks[id]>0)s.perks[id]=Math.min(PERKS[id].max,raw.perks[id]);
+  s.sealsSpent=Number.isInteger(raw.sealsSpent)?Math.max(0,Math.min(s.seals,raw.sealsSpent)):0;
   s.hp = Number.isFinite(raw.hp) && raw.hp > 0 ? Math.min(raw.hp, enemyHealth(s.stage)) : enemyHealth(s.stage);
   for (const key of Object.keys(UPGRADE_INFO)) {
     const level = raw.upgrades?.[key];

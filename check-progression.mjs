@@ -53,4 +53,11 @@ import("./dist/core.mjs").then(({ACHIEVEMENTS,rival,claimAchievements})=>{
   const t=freshState();t.grades={a:"S",b:"A",c:"A"};t.daily={lastDone:"2026-11-16",streak:3};t.boons={income:3,power:2};const ids=claimAchievements(t).map(a=>a.id);for(const id of ["gradeS","gradeA3","daily1","daily3","boons5","fervor3"])assert.ok(ids.includes(id),id);assert.ok(!ids.includes("gradeS5")&&!ids.includes("daily7"));
   assert.equal(rival(1).hint,"DON DANS 4 SACS");assert.equal(rival(4).hint,"DON DANS 1 SAC");assert.equal(rival(5).boss,true);assert.equal(rival(6).boonIn,4);
 });
+import("./dist/core.mjs").then(({PERKS,buyPerk,perkCost,sealsAvailable,legacyMultiplier,completeChallenge,boonChoices})=>{
+  const p=freshState();p.seals=4;const power=legacyMultiplier(p);assert.equal(perkCost(p,"headstart"),1);assert.equal(buyPerk(p,"headstart"),true);assert.equal(sealsAvailable(p),3);assert.equal(legacyMultiplier(p),power,"Dépenser un sceau garde son bonus");
+  assert.equal(buyPerk(p,"fourth"),true);assert.equal(sealsAvailable(p),0);assert.equal(buyPerk(p,"reroll"),false,"Pas assez de sceaux");assert.equal(buyPerk(p,"nope"),false);assert.equal(perkCost(p,"fourth"),Infinity,"Niveau max");
+  p.seals=20;buyPerk(p,"blessing");p.stage=21;p.runCoins=12000;prestige(p,1,()=>0);assert.equal(p.upgrades.echo,5,"Relève assurée");assert.equal(Object.values(p.boons).reduce((n,v)=>n+v,0),1,"Bénédiction");assert.equal(p.perks.headstart,1,"Les achats survivent à la transmission");
+  assert.equal(boonChoices(Math.random,4).length,4);const q=freshState();q.perks.devotion=1;assert.equal(completeChallenge(q,"2026-11-16"),10);
+  const back=restoreState(JSON.parse(JSON.stringify(p)));assert.deepEqual(back.perks,p.perks);assert.equal(back.sealsSpent,p.sealsSpent);assert.equal(restoreState({version:1,seals:2,sealsSpent:9,perks:{fourth:5,x:1}}).sealsSpent,2);assert.deepEqual(restoreState({version:1,perks:{fourth:5,x:1}}).perks,{fourth:1});
+});
 console.log('Progression : trois producteurs, paliers, succès uniques, migration, sacs renforcés, prestige, Flow 32 temps et absence validés.');

@@ -1,6 +1,6 @@
 import { judgePlayable } from './input-timing.mjs';
 import { DeviceCalibration } from './device-calibration.mjs';
-import { SAVE_KEY, freshState, restoreState, offlineReward, enemyHealth, enemyReward, attackPower, autoPower, autoIncome, producerIncome, earnPassive, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, PRODUCERS, MILESTONES, ACHIEVEMENTS, producerUnlocked, producerMultiplier, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade, dailyChallenge, challengeMet, completeChallenge, dailyStreak, BOONS, boon, boonChoices, applyBoon } from './core.mjs';
+import { SAVE_KEY, freshState, restoreState, offlineReward, enemyHealth, enemyReward, attackPower, autoPower, autoIncome, producerIncome, earnPassive, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, PRODUCERS, MILESTONES, ACHIEVEMENTS, producerUnlocked, producerMultiplier, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade, dailyChallenge, challengeMet, completeChallenge, dailyStreak, BOONS, boon, boonChoices, applyBoon, PERKS, perk, perkCost, buyPerk, sealsAvailable } from './core.mjs';
 import { FlowMeter } from './flow.mjs';
 import { MusicLibrary } from './music-library.mjs';
 import { freestyleInterval, IMPACT_STYLES } from './audio-sfx.mjs';
@@ -183,14 +183,36 @@ let boonResume=null;
 function offerBoons(){
   const dialog=$('#boon-dialog');if(dialog.open)return;
   boonResume=audio.playing?{combo}:null;if(boonResume)audio.pause();
-  $('#boon-choices').replaceChildren(...boonChoices().map(id=>{
+  drawBoons();$('#boon-reroll').hidden=!perk(state,'reroll');
+  dialog.showModal();dialog.querySelector('.boon-choice').focus();
+}
+function drawBoons(){
+  $('#boon-choices').replaceChildren(...boonChoices(Math.random,perk(state,'fourth')?4:3).map(id=>{
     const button=document.createElement('button');button.type='button';button.className='boon-choice';button.dataset.boon=id;
     const name=document.createElement('strong');name.textContent=BOONS[id].label;
     const text=document.createElement('span');text.textContent=BOONS[id].text;
     const level=document.createElement('small');level.textContent=BOONS[id].instant?'Immédiat':boon(state,id)?'Déjà ×'+boon(state,id):'Nouveau';
     button.append(name,text,level);return button;
   }));
-  dialog.showModal();dialog.querySelector('.boon-choice').focus();
+}
+$('#boon-reroll').addEventListener('click',()=>{$('#boon-reroll').hidden=true;drawBoons();$('#boon-choices .boon-choice').focus();});
+// Seal shop buttons are built once; updateUI only refreshes their text and state.
+$('#perk-list').append(...Object.entries(PERKS).map(([id,p])=>{
+  const button=document.createElement('button');button.type='button';button.className='perk';button.dataset.perk=id;
+  const name=document.createElement('strong');name.textContent=p.label;const text=document.createElement('span');text.textContent=p.text;
+  const price=document.createElement('em');price.dataset.perkPrice='';button.append(name,text,price);return button;
+}));
+$('#perk-list').addEventListener('click',event=>{
+  const id=event.target.closest('[data-perk]')?.dataset.perk;if(!id||!buyPerk(state,id))return;
+  save();updateUI();toast('Acquis pour toujours · '+PERKS[id].label);scene.celebrate('purchase');audio.cue('milestone');
+});
+function renderPerks(){
+  $('#perk-seals').textContent=format(sealsAvailable(state));
+  $$('#perk-list .perk').forEach(button=>{
+    const id=button.dataset.perk,cost=perkCost(state,id),level=perk(state,id),max=PERKS[id].max;
+    button.disabled=!Number.isFinite(cost)||sealsAvailable(state)<cost;button.classList.toggle('owned',level>0);
+    button.querySelector('[data-perk-price]').textContent=(max>1?'Niv. '+level+'/'+max+' · ':'')+(Number.isFinite(cost)?cost+' sceau'+(cost>1?'x':''):'Acquis');
+  });
 }
 $('#boon-dialog').addEventListener('cancel',event=>event.preventDefault());// a pick is required, Esc does not skip it
 $('#boon-choices').addEventListener('click',async event=>{
@@ -274,7 +296,7 @@ function updateUI(){
     button.setAttribute('aria-label',button.querySelector('strong').firstChild.textContent.trim()+', '+level+', '+(!unlocked?'disponible à la série '+producer.unlock:Number.isFinite(cost)?format(cost)+' pièces':'maximum'));
   });
   $('.dojo-button').dataset.affordable=affordable;
-  $('#legacy-seals').textContent=format(state.seals);$('#legacy-bonus').textContent='+'+format(Math.round((legacyMultiplier(state)-1)*100))+' %';
+  renderPerks();$('#legacy-seals').textContent=format(state.seals);$('#legacy-bonus').textContent='+'+format(Math.round((legacyMultiplier(state)-1)*100))+' %';
   const gain=prestigeGain(state);$('#legacy-gain').textContent='+'+gain+' sceau'+(gain>1?'x':'');$('#prepare-prestige').disabled=gain<1;
   $('#legacy-requirement').textContent=gain>0?'Ton école est prête. Une nouvelle voie s’ouvre à toi.':'Brise le sac de la série 20 et gagne 12 000 pièces dans cette école. Progression : série '+state.stage+' · '+format(state.runCoins)+' / 12 000 pièces.';
   if($('#stats-dialog').open)updateStats();
