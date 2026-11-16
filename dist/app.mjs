@@ -227,6 +227,8 @@ function updateStats(){
   $('#achievements').innerHTML=ACHIEVEMENTS.map(a=>'<div class="achievement '+(state.achievements.includes(a.id)?'earned':'')+'"><i>'+(state.achievements.includes(a.id)?'✓':'◇')+'</i><span><strong>'+a.name+'</strong><small>'+a.text+'</small></span><em>+'+coinGain.format(a.reward)+' ◈</em></div>').join('');
 }
 function pulse(element,className){element.classList.remove(className);void element.offsetWidth;element.classList.add(className);}
+// Colour + ✓/✗ on the target so hits and misses read without relying on colour alone.
+function judgeFlash(grade){for(const element of [$('#strike-button'),$('#mobile-strike')]){element.dataset.judge=grade;pulse(element,'judged');}}
 function showMoment(kicker,title,detail,kind=''){
   clearTimeout(momentTimeout);const card=$('#moment-card');card.className='moment-card '+kind;
   $('#moment-kicker').textContent=kicker;$('#moment-title').textContent=title;$('#moment-detail').textContent=detail;void card.offsetWidth;card.classList.add('show');
@@ -280,9 +282,10 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
     if(!judgment||judgment.index<=lastExpired||resolved.has(judgment.index))return;
     if(judgment.grade==='miss'){
       $('#timing-text').textContent=judgment.error<0?'TROP TÔT · ATTENDS LE CERCLE':'TROP TARD · PROCHAINE NOTE';
+      judgeFlash('miss');
       return;
     }
-    resolved.add(judgment.index);lastActionSongTime=audio.time();
+    resolved.add(judgment.index);lastActionSongTime=audio.time();if(!automated)judgeFlash(judgment.grade);
     const previous=rhythm.event(judgment.index-1),next=rhythm.event(judgment.index+1);
     interval=Math.max(.12,Math.min(1.5,previous&&next?(next.time-previous.time)/2:next?next.time-judgment.event.time:previous?judgment.event.time-previous.time:60/audio.bpm));
   }
@@ -569,7 +572,7 @@ function frame(now){
     if(audio.playing&&!sessionMenuOpen&&!$$('dialog[open]').length&&settings.rhythmMode==='tempo'){
       let expired;
       while((expired=rhythm.event(lastExpired+1))&&clock>expired.time+rhythm.windows(expired,state.upgrades.focus).good){
-        if(!resolved.has(expired.index)){if(combo>0){combo=0;flow.miss();$('#timing-text').textContent='REPRENDS LE FLOW';}}
+        if(!resolved.has(expired.index)){judgeFlash('miss');if(combo>0){combo=0;flow.miss();$('#timing-text').textContent='REPRENDS LE FLOW';}}
         resolved.delete(expired.index-4);lastExpired++;
       }
     }
