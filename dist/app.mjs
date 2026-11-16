@@ -163,6 +163,7 @@ function showSongEnd(){
   const day=today(),challenge=dailyChallenge(day,library.items.map(track=>track.id));
   const dailyReward=settings.rhythmMode==='tempo'&&!song.auto&&challenge?.trackId===library.current?.id&&challengeMet(challenge,{combo:song.combo,grade,perfects})?completeChallenge(state,day):0;
   if(dailyReward){save();renderDaily();}
+  award();
   $('#end-daily').hidden=!dailyReward;$('#end-daily').textContent='DÉFI DU JOUR RÉUSSI · +'+coinGain.format(dailyReward)+' PIÈCES · SÉRIE '+state.daily.streak+' J';
   $('#end-title').textContent=$('#track-title').textContent;
   $('#end-grade').hidden=!grade;$('#end-grade').dataset.grade=grade||'';$('#end-grade-letter').textContent=grade||'';
@@ -194,7 +195,7 @@ function offerBoons(){
 $('#boon-dialog').addEventListener('cancel',event=>event.preventDefault());// a pick is required, Esc does not skip it
 $('#boon-choices').addEventListener('click',async event=>{
   const id=event.target.closest('[data-boon]')?.dataset.boon;if(!id||!applyBoon(state,id))return;
-  save();$('#boon-dialog').close();toast('Don accordé · '+BOONS[id].label);scene.celebrate('flow');audio.cue('milestone');
+  award();save();$('#boon-dialog').close();toast('Don accordé · '+BOONS[id].label);scene.celebrate('flow');audio.cue('milestone');
   if(boonResume){const kept=boonResume.combo;boonResume=null;await play();combo=kept;}
 });
 function today(){return new Date().toLocaleDateString('en-CA');}// local YYYY-MM-DD
@@ -282,7 +283,7 @@ function updateStats(){
   const stats=[[state.highestStage,'Meilleure série'],[state.kills,'Sacs brisés'],[state.bestCombo,'Meilleur combo'],[state.hits?Math.round(state.perfects/state.hits*100)+' %':'—','Frappes parfaites'],[state.flows,'Flows déclenchés'],[state.totalCoins,'Éclats gagnés']];
   $('#stats-grid').innerHTML=stats.map(([value,label])=>'<div class="stat-cell"><strong>'+(typeof value==='number'?format(value):value)+'</strong><span>'+label+'</span></div>').join('');
   $('#achievement-count').textContent=state.achievements.length+' / '+ACHIEVEMENTS.length;
-  $('#achievements').innerHTML=ACHIEVEMENTS.map(a=>'<div class="achievement '+(state.achievements.includes(a.id)?'earned':'')+'"><i>'+(state.achievements.includes(a.id)?'✓':'◇')+'</i><span><strong>'+a.name+'</strong><small>'+a.text+'</small></span><em>+'+coinGain.format(a.reward)+' ◈</em></div>').join('');
+  $('#achievements').innerHTML=ACHIEVEMENTS.map(a=>{const earned=state.achievements.includes(a.id),secret=a.hidden&&!earned;return '<div class="achievement '+(earned?'earned':'')+'"><i>'+(earned?'✓':'◇')+'</i><span><strong>'+(secret?'???':a.name)+'</strong><small>'+(secret?'Trophée caché':a.text)+'</small></span><em>'+(secret?'?':'+'+coinGain.format(a.reward))+' ◈</em></div>';}).join('');
 }
 function pulse(element,className){element.classList.remove(className);void element.offsetWidth;element.classList.add(className);}
 // Colour + ✓/✗ on the target so hits and misses read without relying on colour alone.

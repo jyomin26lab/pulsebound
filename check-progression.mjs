@@ -48,4 +48,9 @@ import("./dist/core.mjs").then(({BOONS,boonChoices,applyBoon,attackPower,produce
   assert.deepEqual(restoreState(JSON.parse(JSON.stringify(b))).boons,{income:1,power:1});assert.deepEqual(restoreState({version:1,boons:{income:-2,hack:5,crit:2}}).boons,{crit:2});
   b.stage=21;b.runCoins=12000;prestige(b);assert.deepEqual(b.boons,{},"La transmission remet les dons à zéro");
 });
+import("./dist/core.mjs").then(({ACHIEVEMENTS,rival,claimAchievements})=>{
+  assert.equal(new Set(ACHIEVEMENTS.map(a=>a.id)).size,ACHIEVEMENTS.length,"Identifiants de trophées uniques");assert.ok(ACHIEVEMENTS.length>=30);assert.ok(ACHIEVEMENTS.filter(a=>a.hidden).length>=3);
+  const t=freshState();t.grades={a:"S",b:"A",c:"A"};t.daily={lastDone:"2026-11-16",streak:3};t.boons={income:3,power:2};const ids=claimAchievements(t).map(a=>a.id);for(const id of ["gradeS","gradeA3","daily1","daily3","boons5","fervor3"])assert.ok(ids.includes(id),id);assert.ok(!ids.includes("gradeS5")&&!ids.includes("daily7"));
+  assert.equal(rival(1).hint,"DON DANS 4 SACS");assert.equal(rival(4).hint,"DON DANS 1 SAC");assert.equal(rival(5).boss,true);assert.equal(rival(6).boonIn,4);
+});
 console.log('Progression : trois producteurs, paliers, succès uniques, migration, sacs renforcés, prestige, Flow 32 temps et absence validés.');

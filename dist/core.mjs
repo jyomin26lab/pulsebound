@@ -22,7 +22,30 @@ export const ACHIEVEMENTS=[
   {id:'ten',name:'Une véritable école',text:'Recruter 10 disciples',reward:2.5,test:s=>s.upgrades.echo>=10},
   {id:'hundred',name:'La précision du geste',text:'Réussir 100 frappes parfaites',reward:1.5,test:s=>s.perfects>=100},
   {id:'master',name:'La transmission',text:'Recruter un maître',reward:5.0,test:s=>s.upgrades.master>=1},
-  {id:'legacy',name:'Un nouveau départ',text:'Transmettre ton dojo',reward:1.0,test:s=>s.prestiges>=1}
+  {id:'legacy',name:'Un nouveau départ',text:'Transmettre ton dojo',reward:1.0,test:s=>s.prestiges>=1},
+  // Long-term goals tied to grades, the daily challenge and boons. Hidden ones show as ??? until earned.
+  {id:'kills100',name:'Cent sacs',text:'Briser 100 sacs',reward:2,test:s=>s.kills>=100},
+  {id:'kills1000',name:'Le sac n’a qu’à bien se tenir',text:'Briser 1 000 sacs',reward:20,test:s=>s.kills>=1000},
+  {id:'bosses10',name:'Dix épreuves',text:'Briser 10 sacs renforcés',reward:4,test:s=>s.bosses>=10},
+  {id:'stage25',name:'Série 25',text:'Atteindre la série 25',reward:3,test:s=>s.highestStage>=25},
+  {id:'stage50',name:'Série 50',text:'Atteindre la série 50',reward:25,test:s=>s.highestStage>=50},
+  {id:'combo50',name:'Cinquante sans rupture',text:'Enchaîner 50 frappes réussies',reward:3,test:s=>s.bestCombo>=50},
+  {id:'combo128',name:'Transe',text:'Enchaîner 128 frappes réussies',reward:12,hidden:true,test:s=>s.bestCombo>=128},
+  {id:'perfect500',name:'Main sûre',text:'Réussir 500 frappes parfaites',reward:6,test:s=>s.perfects>=500},
+  {id:'perfect2000',name:'Le geste juste',text:'Réussir 2 000 frappes parfaites',reward:25,test:s=>s.perfects>=2000},
+  {id:'flow10',name:'Brasier',text:'Déclencher 10 Flows',reward:4,test:s=>s.flows>=10},
+  {id:'gradeS',name:'Note parfaite',text:'Obtenir un S sur un morceau',reward:5,test:s=>Object.values(s.grades||{}).includes('S')},
+  {id:'gradeA3',name:'Répertoire',text:'Obtenir A ou mieux sur 3 morceaux',reward:6,test:s=>Object.values(s.grades||{}).filter(g=>g==='S'||g==='A').length>=3},
+  {id:'gradeS5',name:'Virtuose',text:'Obtenir S sur 5 morceaux',reward:30,hidden:true,test:s=>Object.values(s.grades||{}).filter(g=>g==='S').length>=5},
+  {id:'daily1',name:'Rendez-vous',text:'Réussir un défi du jour',reward:1,test:s=>(s.daily?.streak||0)>=1},
+  {id:'daily3',name:'Trois jours de suite',text:'Réussir le défi 3 jours d’affilée',reward:5,test:s=>(s.daily?.streak||0)>=3},
+  {id:'daily7',name:'Une semaine au dojo',text:'Réussir le défi 7 jours d’affilée',reward:15,hidden:true,test:s=>(s.daily?.streak||0)>=7},
+  {id:'boons5',name:'Dojo béni',text:'Cumuler 5 dons durables dans une même école',reward:4,test:s=>Object.values(s.boons||{}).reduce((n,v)=>n+v,0)>=5},
+  {id:'fervor3',name:'Triple ferveur',text:'Choisir 3 fois Ferveur dans une même école',reward:6,hidden:true,test:s=>(s.boons?.income||0)>=3},
+  {id:'disciples25',name:'Une cour pleine',text:'Recruter 25 disciples',reward:5,test:s=>s.upgrades.echo>=25},
+  {id:'masters10',name:'Conseil des maîtres',text:'Recruter 10 maîtres',reward:20,test:s=>s.upgrades.master>=10},
+  {id:'legacy3',name:'Lignée',text:'Transmettre 3 fois ton dojo',reward:8,test:s=>s.prestiges>=3},
+  {id:'seals10',name:'Dix sceaux',text:'Réunir 10 sceaux',reward:20,hidden:true,test:s=>s.seals>=10}
 ];
 export const GRADES=['S','A','B','C'];
 // Good counts half a perfect; under 16 judged notes (skipped or very short) there is no grade.
@@ -91,7 +114,9 @@ export function freshState(now = Date.now()) {
     upgrades: { power: 0, echo: 0, adept:0, master:0, focus: 0, fury: 0 }, savedAt: now };
 }
 export function rival(stage){
-  const boss=stage%5===0;return {kind:'bag',name:boss?'SAC RENFORCÉ':'SAC DE FRAPPE',hint:boss?'ÉPREUVE · RÉCOMPENSE ×4':'',boss};
+  // Every reinforced bag (each 5th) grants a boon pick, so the next one is always shown as a near goal.
+  const boss=stage%5===0,left=boss?0:5-stage%5;
+  return {kind:'bag',name:boss?'SAC RENFORCÉ':'SAC DE FRAPPE',hint:boss?'ÉPREUVE · DON + RÉCOMPENSE ×4':'DON DANS '+left+' SAC'+(left>1?'S':''),boss,boonIn:left};
 }
 export function enemyHealth(stage) { return Math.round(90 * Math.pow(1.16, stage - 1)*Math.pow(1.08,Math.max(0,stage-5))*(stage%5===0?3:1)); }
 export function enemyReward(stage) { return (5 + Math.min(stage-1,95)) * (stage%5===0?4:1) / 100; }
