@@ -125,7 +125,7 @@ export function completeChallenge(s,day){
 export function freshState(now = Date.now()) {
   return { version: 1, dojoLit: false, coins: 0, stage: 1, hp: enemyHealth(1), kills: 0,
     hits: 0, perfects: 0, dodges: 0, dodgesMissed: 0, bestCombo: 0, totalCoins: 0, totalDamage: 0,
-    runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[], grades:{}, daily:{lastDone:'',streak:0}, boons:{}, perks:{}, sealsSpent:0,
+    runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[], grades:{}, daily:{lastDone:'',streak:0}, boons:{}, pendingBoons:0, perks:{}, sealsSpent:0,
     upgrades: { power: 0, echo: 0, adept:0, master:0, focus: 0, fury: 0 }, savedAt: now };
 }
 export function rival(stage){
@@ -202,7 +202,7 @@ export function prestige(s,now=Date.now(),random=Math.random){
   const gain=prestigeGain(s);if(gain<1)return 0;
   s.seals+=gain;s.prestiges++;s.coins=0;s.runCoins=0;s.stage=1;s.hp=enemyHealth(1);s.savedAt=now;
   for(const key of Object.keys(UPGRADE_INFO))s.upgrades[key]=0;
-  s.boons={};s.upgrades.power=1;if(s.seals>=3)s.upgrades.echo=1;
+  s.boons={};s.pendingBoons=0;s.upgrades.power=1;if(s.seals>=3)s.upgrades.echo=1;
   s.upgrades.echo=Math.max(s.upgrades.echo,perk(s,'headstart')*5);
   const lasting=Object.keys(BOONS).filter(id=>!BOONS[id].instant);
   for(let i=0;i<perk(s,'blessing');i++)applyBoon(s,lasting[Math.floor(random()*lasting.length)]);
@@ -246,6 +246,7 @@ export function restoreState(raw, now = Date.now()) {
   // Grades come from imported save files too: keep only short ids and known letters.
   if(raw.grades&&typeof raw.grades==='object')for(const [id,grade]of Object.entries(raw.grades).slice(0,1000))if(id.length<=200&&GRADES.includes(grade))s.grades[id]=grade;
   if(typeof raw.daily?.lastDone==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(raw.daily.lastDone)&&Number.isInteger(raw.daily.streak))s.daily={lastDone:raw.daily.lastDone,streak:Math.max(0,Math.min(100000,raw.daily.streak))};
+  if(Number.isInteger(raw.pendingBoons))s.pendingBoons=Math.max(0,Math.min(50,raw.pendingBoons));
   if(raw.boons&&typeof raw.boons==='object')for(const id of Object.keys(BOONS))if(Number.isInteger(raw.boons[id])&&raw.boons[id]>0)s.boons[id]=Math.min(1000,raw.boons[id]);
   if(raw.perks&&typeof raw.perks==='object')for(const id of Object.keys(PERKS))if(Number.isInteger(raw.perks[id])&&raw.perks[id]>0)s.perks[id]=Math.min(PERKS[id].max,raw.perks[id]);
   s.sealsSpent=Number.isInteger(raw.sealsSpent)?Math.max(0,Math.min(s.seals,raw.sealsSpent)):0;

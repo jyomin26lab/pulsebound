@@ -46,7 +46,8 @@ import("./dist/core.mjs").then(({BOONS,boonChoices,applyBoon,attackPower,produce
   assert.equal(applyBoon(b,"income"),true);assert.ok(Math.abs(producerIncome(b,"echo")-income*1.2)<1e-12);applyBoon(b,"power");assert.ok(Math.abs(attackPower(b)-power*1.15)<1e-12);
   applyBoon(b,"recruit");assert.equal(b.upgrades.echo,3);const before=b.coins;applyBoon(b,"coins");assert.ok(b.coins-before>=3);assert.equal(applyBoon(b,"nope"),false);
   assert.deepEqual(restoreState(JSON.parse(JSON.stringify(b))).boons,{income:1,power:1});assert.deepEqual(restoreState({version:1,boons:{income:-2,hack:5,crit:2}}).boons,{crit:2});
-  b.stage=21;b.runCoins=12000;prestige(b);assert.deepEqual(b.boons,{},"La transmission remet les dons à zéro");
+  b.pendingBoons=2;assert.equal(restoreState(JSON.parse(JSON.stringify(b))).pendingBoons,2,"Dons en attente sauvegardés");assert.equal(restoreState({version:1,pendingBoons:-3}).pendingBoons,0);
+  b.stage=21;b.runCoins=12000;prestige(b);assert.deepEqual(b.boons,{},"La transmission remet les dons à zéro");assert.equal(b.pendingBoons,0);
 });
 import("./dist/core.mjs").then(({ACHIEVEMENTS,rival,claimAchievements})=>{
   assert.equal(new Set(ACHIEVEMENTS.map(a=>a.id)).size,ACHIEVEMENTS.length,"Identifiants de trophées uniques");assert.ok(ACHIEVEMENTS.length>=30);assert.ok(ACHIEVEMENTS.filter(a=>a.hidden).length>=3);

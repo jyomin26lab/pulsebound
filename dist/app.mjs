@@ -172,21 +172,19 @@ function showSongEnd(){
   $('#end-combo').textContent=song.combo+'×';
   $('#end-perfects').textContent=hits?perfects+' / '+hits:'—';
   $('#end-record').hidden=!record;
-  $('#song-end').showModal();
+  $('#song-end').showModal();offerBoons();
   if(record||best||dailyReward){scene.celebrate('flow');audio.cue('milestone');}
 }
 $('#end-next').addEventListener('click',()=>{$('#song-end').close();void advanceTrack(1,true);});
 $('#end-replay').addEventListener('click',()=>{$('#song-end').close();$('#restart-session').click();});
-// Three boons after each reinforced bag. The song pauses during the pick and the combo is kept.
-// shortcut: a bag broken while the pick is already open gives no extra pick; queue them if idle damage gets that fast.
-let boonResume=null;
+// Each reinforced bag earns a boon pick. During a song the picks wait (saved in state.pendingBoons) and open
+// over the end-of-song card, so a song is never interrupted; without music they open right away.
 function offerBoons(){
-  const dialog=$('#boon-dialog');if(dialog.open)return;
-  boonResume=audio.playing?{combo}:null;if(boonResume)audio.pause();
-  drawBoons();$('#boon-reroll').hidden=!perk(state,'reroll');
-  dialog.showModal();dialog.querySelector('.boon-choice').focus();
+  const dialog=$('#boon-dialog');if(dialog.open||!state.pendingBoons)return;
+  drawBoons();dialog.showModal();dialog.querySelector('.boon-choice').focus();
 }
 function drawBoons(){
+  $('#boon-count').textContent=state.pendingBoons>1?' · '+state.pendingBoons+' DONS À CHOISIR':'';$('#boon-reroll').hidden=!perk(state,'reroll');
   $('#boon-choices').replaceChildren(...boonChoices(Math.random,perk(state,'fourth')?4:3).map(id=>{
     const button=document.createElement('button');button.type='button';button.className='boon-choice';button.dataset.boon=id;
     const name=document.createElement('strong');name.textContent=BOONS[id].label;
@@ -215,10 +213,10 @@ function renderPerks(){
   });
 }
 $('#boon-dialog').addEventListener('cancel',event=>event.preventDefault());// a pick is required, Esc does not skip it
-$('#boon-choices').addEventListener('click',async event=>{
+$('#boon-choices').addEventListener('click',event=>{
   const id=event.target.closest('[data-boon]')?.dataset.boon;if(!id||!applyBoon(state,id))return;
-  award();save();$('#boon-dialog').close();toast('Don accordé · '+BOONS[id].label);scene.celebrate('flow');audio.cue('milestone');
-  if(boonResume){const kept=boonResume.combo;boonResume=null;await play();combo=kept;}
+  state.pendingBoons=Math.max(0,state.pendingBoons-1);award();save();toast('Don accordé · '+BOONS[id].label);scene.celebrate('flow');audio.cue('milestone');
+  if(state.pendingBoons){drawBoons();$('#boon-choices .boon-choice').focus();}else $('#boon-dialog').close();
 });
 function today(){return new Date().toLocaleDateString('en-CA');}// local YYYY-MM-DD
 function challengeText(c){return c.kind==='combo'?'Fais un combo de '+c.target:c.kind==='grade'?'Obtiens la note '+c.target+(c.target==='S'?'':' ou mieux'):'Réussis '+c.target+' Parfaits';}
@@ -332,7 +330,7 @@ function dealDamage(amount){
   const breakTime=performance.now(),loud=breakTime-lastBreakAt>250;if(loud)lastBreakAt=breakTime;
   pulse($('.wallet'),'rewarding');scene.celebrate('victory',breakTime,loud?'+'+format(state.totalCoins-coinsBefore)+' ◈':'');
   if(loud){audio.bagBreak();buzz([20,30,40]);}
-  if(state.bosses>before){showMoment('ÉPREUVE ACCOMPLIE','LE SAC CÈDE.','Ton école ouvre une nouvelle voie.','boss');audio.cue('boss');offerBoons();}
+  if(state.bosses>before){state.pendingBoons++;showMoment('ÉPREUVE ACCOMPLIE','LE SAC CÈDE.',audio.playing?'Un don t’attend à la fin du morceau.':'Choisis un don pour ton dojo.','boss');audio.cue('boss');if(!audio.playing)offerBoons();}
   else if(state.stage%5===0)showMoment('ÉPREUVE · SÉRIE '+state.stage,'SAC RENFORCÉ','Une résistance supérieure. Une récompense ×4.','boss');
   const unlocked=Object.values(FORMS).filter(form=>form.stage>previousStage && form.stage<=state.highestStage);
   if(unlocked.length){showMoment('NOUVELLE TECHNIQUE',unlocked.map(form=>form.label).join(' + ').toUpperCase(),'Nova l’ajoute à ses enchaînements.','flow');scene.celebrate('flow');audio.cue('milestone');}
