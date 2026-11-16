@@ -44,7 +44,7 @@ const welcome=offlineReward(state);
 try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch{storageAvailable=false;}
 const library=new MusicLibrary();
 let sessionMenuOpen=true,libraryLoaded=false,trackLoading=false,importing=false,loadedId=null,selectionSerial=0,advanceBusy=false,removedTrack=null,pendingWelcome=null,lastFreeHit=NaN;
-let combo=0,perfectRun=0,lastBreakAt=0,lastInput=-Infinity,toastTimeout,momentTimeout,lastActionSongTime=-1;
+let combo=0,perfectRun=0,lastBreakAt=0,holding=null,lastInput=-Infinity,toastTimeout,momentTimeout,lastActionSongTime=-1;
 const flow=new FlowMeter();
 let transportBusy=false,importedTitle='',lastPaint=0,lastFrame=performance.now(),autoFlashAt=0;
 let importController=null;
@@ -66,7 +66,7 @@ function rebuildRhythm(){
   $$('[data-rhythm-mode]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.rhythmMode===settings.rhythmMode)));
   $('#tempo-options').hidden=free;$('#strike-button').setAttribute('aria-label',free?'Frapper librement':'Frapper en rythme');document.body.classList.toggle('freestyle',free);
   $('#bag-hitbox').setAttribute('aria-label',free?'Frapper librement le sac':'Frapper le sac');$('#bag-hitbox').title=free?'Frappe libre · D / F / Espace':'Frapper en rythme · D / F / Espace';
-  $('.page-footer p').textContent=free?'D / F / Espace ou clique le sac quand tu veux.':'D / F / Espace · Frappe quand une note rejoint le grand repère.';
+  $('.page-footer p').textContent=free?'D / F / Espace ou clique le sac quand tu veux.':'D / F / Espace · Frappe quand une note rejoint le grand repère. Note à traînée : garde la touche enfoncée.';
 }
 function toast(message){clearTimeout(toastTimeout);$('#toast').textContent=message;$('#toast').classList.add('visible');toastTimeout=setTimeout(()=>$('#toast').classList.remove('visible'),3600);}
 function save(){
@@ -76,12 +76,12 @@ function save(){
   $('#save-status span').textContent=storageAvailable?'Sauvegardé':'Sauvegarde indisponible';
 }
 function clearNotes(){
-  const button=$('#strike-button');button.classList.remove('target-active','target-due');$('#mobile-strike').classList.remove('target-due');button.querySelector('.target-ring').style.opacity=0;delete button.dataset.event;delete button.dataset.time;
+  const button=$('#strike-button');button.classList.remove('target-active','target-due','holding');$('#mobile-strike').classList.remove('target-due');button.querySelector('.target-ring').style.opacity=0;delete button.dataset.event;delete button.dataset.time;
   const technique=armedTechnique||'punch';if(button.dataset.currentMove!==technique){button.dataset.currentMove=technique;button.querySelector('img').src=TECHNIQUES[technique].icon;}
   for(const node of queueNodes.values())node.remove();queueNodes.clear();
 }
 function resetCombo(){
-  combo=0;perfectRun=0;lastBeatPulse=null;lastFreeHit=NaN;clearNotes();rebuildRhythm();
+  combo=0;perfectRun=0;holding=null;lastBeatPulse=null;lastFreeHit=NaN;clearNotes();rebuildRhythm();
   if(audio.time()<lastActionSongTime-.05){resolved.clear();lastActionSongTime=-1;flow.lastBeat=null;}
   const clock=audio.audibleTime()-settings.latency/1000,nearest=rhythm.nearest(clock);
   autoStriker.reset(rhythm,clock);
@@ -346,6 +346,28 @@ function breakCombo(){
   if(combo>=8){scene.comboBreak();audio.comboBreak();feedback('COMBO PERDU','×'+combo+' · REPRENDS LE RYTHME','miss');buzz(60);}
   combo=0;perfectRun=0;flow.miss();
 }
+// Hold notes: while the key stays down Nova keeps striking (a tick every 0.18 s of song time) until the tail runs out.
+function tickHold(clock,now){
+  while(holding&&holding.nextTick<=Math.min(clock,holding.end)){
+    holding.nextTick+=.18;holding.ticks++;
+    scene.animate('hero',holding.ticks%2?'cross':'punch',now,170);scene.strikeBag(now,.6);scene.impact({combo,now});audio.holdTick();
+    dealDamage(Math.max(1,Math.round(hitDamage(state,'good',combo,1).damage*.4)));// may open a boon pick, which pauses the song and clears the hold
+  }
+  if(!holding||clock<holding.end)return;
+  const auto=holding.auto;holding=null;combo++;if(!auto){state.bestCombo=Math.max(combo,state.bestCombo);song.combo=Math.max(song.combo,combo);buzz([15,20,30]);}
+  addCoins(state,.03);flow.hit('perfect',.5);scene.celebrate('purchase',now,'+0,03 ◈');audio.holdTick(true);
+  feedback('TENUE PARFAITE','+1 COMBO · +0,03 PIÈCE','perfect');award();
+}
+// Letting go early only ends the burst: no penalty, the combo is kept. The last 120 ms count as a full hold.
+function releaseHold(source){
+  if(!holding||holding.auto||holding.source!==source)return;
+  const clock=audio.audibleTime()-settings.latency/1000;
+  if(clock>=holding.end-.12){holding.end=clock;return;}
+  holding=null;feedback('RELÂCHÉ TROP TÔT','MAINTIENS JUSQU’AU BOUT DE LA TRAÎNÉE','miss');
+}
+document.addEventListener('keyup',event=>releaseHold(event.code));
+for(const type of ['pointerup','pointercancel'])addEventListener(type,()=>releaseHold('pointer'));
+addEventListener('blur',()=>{if(holding&&!holding.auto)holding=null;});
 function feedback(label,subline,grade='perfect'){
   const element=$('#combat-feedback');element.className=`combat-feedback ${grade}`;element.replaceChildren(document.createTextNode(label));
   const small=document.createElement('small');small.textContent=subline;element.append(small);void element.offsetWidth;element.classList.add('show');
@@ -394,7 +416,8 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
     scene.animate('hero',move,now,Math.max(210,Math.min(420,interval*850)));scene.strikeBag(now,hit.critical?1.5:1);
     scene.impact({damage:'+'+coinGain.format(coinsEarned)+' ◈',critical:hit.critical,combo,now:now+45});
     feedback(hit.critical?'CRITIQUE':automated?'AUTO':free?'IMPACT':judgment.grade==='perfect'?'PARFAIT'+(perfectRun>1?' ×'+perfectRun:''):'BIEN',count?'SAC BRISÉ · SÉRIE '+state.stage:(FORMS[move]?.label||STYLE_MOVES[move]||TECHNIQUES[technique].label).toUpperCase()+' · +'+coinGain.format(coinsEarned)+' PIÈCE'+(coinsEarned<2?'':'S'),hit.critical?'critical':judgment.grade);
-    audio.hit(judgment.grade,hit.critical,combo);if(!automated)buzz(hit.critical?30:10);pulse($('.combo-badge'),'bump');pulse($('#strike-button'),'impact');award();
+    audio.hit(judgment.grade,hit.critical,combo);if(!automated)buzz(hit.critical?30:10);
+    if(judgment.event?.hold&&!free&&audio.playing){holding={index:judgment.event.index,end:judgment.event.time+judgment.event.hold,nextTick:judgment.event.time+.18,auto:automated,source:null,ticks:0};feedback('MAINTIENS','RAFALE · GARDE LA TOUCHE ENFONCÉE','perfect');}pulse($('.combo-badge'),'bump');pulse($('#strike-button'),'impact');award();
     if(!free&&!automated&&[8,16,32,64,128].includes(combo)){showMoment('ENCHAÎNEMENT SANS RUPTURE','COMBO ×'+combo,combo>=32?'LE DOJO SUIT TON FLOW.':'CHAQUE COUP TROUVE SA PLACE.','flow');audio.cue('milestone');scene.celebrate('flow');}
   }else{
     breakCombo();scene.animate('hero','punch',now);feedback('HORS TEMPO','VISE LE GRAND REPÈRE','miss');
@@ -403,14 +426,15 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
   updateUI();
 }
 for(const selector of ['#strike-button','#bag-hitbox','#mobile-strike']){
-  $(selector).addEventListener('pointerdown',event=>{if(event.button!==0||event.pointerType==='touch'&&!audio.playing)return;event.preventDefault();act(event.timeStamp);});
+  $(selector).addEventListener('pointerdown',event=>{if(event.button!==0||event.pointerType==='touch'&&!audio.playing)return;event.preventDefault();act(event.timeStamp);if(holding&&!holding.source)holding.source='pointer';});
+  $(selector).addEventListener('contextmenu',event=>event.preventDefault());// a long press must hold the note, not open a menu
   $(selector).addEventListener('click',event=>{if(event.detail===0||!audio.playing)act(event.timeStamp);});
 }
 document.addEventListener('keydown',event=>{
   if(sessionMenuOpen)return;
   if(!['KeyD','KeyF','Space'].includes(event.code)||event.repeat||event.ctrlKey||event.altKey||event.metaKey||$$('dialog[open]').length||/INPUT|TEXTAREA|SELECT/.test(event.target.tagName))return;
   if(event.code==='Space'&&event.target.closest('button')&&!['strike-button','bag-hitbox','mobile-strike','play-button','start-button'].includes(event.target.closest('button').id))return;
-  event.preventDefault();act(event.timeStamp);
+  event.preventDefault();act(event.timeStamp);if(holding&&!holding.source)holding.source=event.code;
 });
 function selectShopTab(key,focus=false){
   $$('[data-shop-tab]').forEach(button=>{const selected=button.dataset.shopTab===key;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;$('#'+button.dataset.shopTab+'-panel').hidden=!selected;if(selected&&focus)button.focus();});
@@ -631,17 +655,19 @@ function drawNotes(time){
   const clock=time-settings.latency/1000,upcoming=rhythm.upcoming(clock,ahead,.2).filter(event=>event.index>lastExpired&&!resolved.has(event.index)),visible=new Set();
   for(const note of upcoming){
     visible.add(note.index);let node=queueNodes.get(note.index);
-    if(!node){node=document.createElement('span');node.className='queue-note'+(note.beat?'':' offbeat');const img=document.createElement('img');img.src='./icons/power.svg';img.alt='';const label=document.createElement('small');label.textContent=note.index%8+1;node.append(img,label);$('#upcoming-notes').append(node);queueNodes.set(note.index,node);}
+    if(!node){node=document.createElement('span');node.className='queue-note'+(note.beat?'':' offbeat');const img=document.createElement('img');img.src='./icons/power.svg';img.alt='';const label=document.createElement('small');label.textContent=note.index%8+1;node.append(img,label);if(note.hold){const tail=document.createElement('i');tail.className='hold-tail';node.append(tail);}$('#upcoming-notes').append(node);queueNodes.set(note.index,node);}
     const technique=techniqueFor(note.index,note.index===upcoming[0]?.index?armedTechnique:null);if(node.dataset.currentMove!==technique){node.dataset.currentMove=technique;node.querySelector('img').src=TECHNIQUES[technique].icon;}
     const delay=note.time-clock,y=anchor+delay/ahead*(height-anchor);
-    node.style.transform='translate3d(-50%,calc('+y+'px - 50%),0)';node.style.opacity=delay<-.06?Math.max(0,1+(delay+.06)*10):Math.min(1,(ahead-delay)*4);node.classList.toggle('arriving',Math.abs(delay)<.12);
+    node.style.transform='translate3d(-50%,calc('+y+'px - 50%),0)';node.style.opacity=delay<-.06?Math.max(0,1+(delay+.06)*10):Math.min(1,(ahead-delay)*4);node.classList.toggle('arriving',Math.abs(delay)<.12);if(note.hold)node.lastChild.style.height=note.hold/ahead*(height-anchor)+'px';
   }
+  // The held note stays pinned on the target while its tail shrinks.
+  if(holding&&queueNodes.has(holding.index)){const node=queueNodes.get(holding.index);visible.add(holding.index);node.style.transform='translate3d(-50%,calc('+anchor+'px - 50%),0)';node.style.opacity=1;node.lastChild.style.height=Math.max(0,holding.end-clock)/ahead*(height-anchor)+'px';}
   for(const [index,node]of queueNodes)if(!visible.has(index)){node.remove();queueNodes.delete(index);}
   const button=$('#strike-button'),ring=button.querySelector('.target-ring'),event=rhythm.playable(clock,lastExpired,resolved);
   const currentTechnique=techniqueFor(event?.index??0,armedTechnique);if(button.dataset.currentMove!==currentTechnique){button.dataset.currentMove=currentTechnique;button.querySelector('img').src=TECHNIQUES[currentTechnique].icon;}
   const delay=event ? event.time-clock : Infinity;
   const perfect=event && Math.abs(delay)<=rhythm.windows(event,state.upgrades.focus).perfect;
-  button.classList.toggle('target-active',delay<=.55);
+  button.classList.toggle('target-active',delay<=.55);button.classList.toggle('holding',Boolean(holding));
   button.classList.toggle('target-due',Boolean(perfect));
   $('#mobile-strike').classList.toggle('target-due',Boolean(perfect));
   ring.style.opacity=delay<=.55 ? .85 : 0;
@@ -661,6 +687,7 @@ function frame(now){
     if(passive>0){dealDamage(passive*delta);if(!autoEnabled&&now-autoFlashAt>1300){scene.strikeBag(now,.25);scene.animate('hero','auto',now);autoFlashAt=now;}}
     const time=audio.audibleTime(now),clock=time-settings.latency/1000;
     if(autoEnabled&&audio.playing&&!sessionMenuOpen&&!$$('dialog[open]').length){const event=autoStriker.take(rhythm,clock);if(event)void act(now,event);}
+    if(audio.playing)tickHold(clock,now);
     if(audio.playing&&!sessionMenuOpen&&!$$('dialog[open]').length&&settings.rhythmMode==='tempo'){
       let expired;
       while((expired=rhythm.event(lastExpired+1))&&clock>expired.time+rhythm.windows(expired,state.upgrades.focus).good){

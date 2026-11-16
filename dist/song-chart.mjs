@@ -21,6 +21,28 @@ function nearestIndex(values,time){
   let lo=0,hi=values.length;while(lo<hi){const mid=(lo+hi)>>1;if(values[mid]<time)lo=mid+1;else hi=mid;}
   return lo>0&&(lo===values.length||time-values[lo-1]<=values[lo]-time)?lo-1:lo;
 }
+/**
+ * Hold notes. A note becomes a hold (`hold` = seconds to keep the key down) when the music sustains after it:
+ * a long gap before the next note, or an attack followed by a beat with no detected attack (that beat is absorbed).
+ * Real mixes rarely leave such gaps (an attack is detected on nearly every beat), so after 12 notes without a hold
+ * the first note followed by a weaker or equal one is held across it: about one hold every 13 notes at least.
+ * A hold always ends before the next note, leaving time to release and strike again.
+ */
+export function markHolds(events,automatic=false){
+  const result=[];let sinceHold=4;
+  for(let i=0;i<events.length;i++){
+    const event=events[i],next=events[i+1],after=events[i+2];
+    const gap=next?next.time-event.time:0,span=after?after.time-event.time:0;
+    const absorb=Boolean(next)&&(automatic&&event.supported&&next.beat&&!next.supported||sinceHold>=12&&(next.strength??0)<=(event.strength??0));
+    let hold=0,skip=0;
+    if(sinceHold>=4){
+      if(gap>=.9)hold=Math.min(gap,2.7)-.3;
+      else if(absorb&&span>=.8&&span<=2.7){hold=span-.3;skip=1;}
+    }
+    if(hold){result.push({...event,hold});i+=skip;sinceHold=0;}else{result.push(event);sinceHold++;}
+  }
+  return result;
+}
 /** The beat clock and the playable attacks share song timestamps, but stay distinct. */
 export function createSongChart(track,{density='standard'}={}){
   const config=songSettings(track),duration=Number.isFinite(track?.duration)?track.duration:3600;
@@ -61,8 +83,9 @@ export function createSongChart(track,{density='standard'}={}){
     if(density==='relaxed' && playable.length && event.time-playable.at(-1).time<.38)continue;
     playable.push(event);
   }
-  playable.forEach((e,i)=>e.index=i);
-  return {config,beats,events:playable,rhythm:new RhythmMap(playable),automatic,duration};
+  const held=markHolds(playable,automatic);
+  held.forEach((e,i)=>e.index=i);
+  return {config,beats,events:held,rhythm:new RhythmMap(held),automatic,duration};
 }
 export function waveformPeaks(samples,count=4096){
   const length=Math.min(count,samples.length),peaks=new Array(length).fill(0);let maximum=0;

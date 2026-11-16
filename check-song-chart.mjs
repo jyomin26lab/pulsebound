@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createSongChart,gridBeats,songSettings,waveformPeaks} from './dist/song-chart.mjs';
+import {createSongChart,gridBeats,songSettings,waveformPeaks,markHolds} from './dist/song-chart.mjs';
 const close=(a,b)=>assert.ok(Math.abs(a-b)<.00001,`${a} ≠ ${b}`);
 const config={bpm:120,offset:.25,segments:[{time:4.25,bpm:180},{time:7.25,bpm:90}]};
 const beats=gridBeats(10,config);
@@ -23,10 +23,17 @@ assert.ok(chart.rhythm.upcoming(1.1,2).length>3,'Plusieurs notes anticipées');
 assert.equal(chart.rhythm.event(9999),null,'Pas de boucle inventée après le fichier');
 const shifted=createSongChart({duration:5,bpm:120,offset:1.3,analysis});close(shifted.beats[0],1.3);close(shifted.events[1].time,1.55);
 const manual=createSongChart({duration:10,analysis,chart:{source:'grid',...config}});
-assert.equal(manual.automatic,false);assert.deepEqual(manual.beats,beats);assert.equal(manual.events.length,beats.length);
+assert.equal(manual.automatic,false);assert.deepEqual(manual.beats,beats);assert.equal(manual.events.length+manual.events.filter(e=>e.hold).length,beats.length,"Une note par temps, moins les temps couverts par une note longue");
 const clean=songSettings({duration:20,chart:{bpm:999,offset:-4,segments:[{time:4,bpm:120},{time:4,bpm:180},{time:3,bpm:NaN},{time:500,bpm:100}]}});
 assert.equal(clean.bpm,240);assert.equal(clean.offset,0);assert.deepEqual(clean.segments,[{time:4,bpm:120}]);
 assert.deepEqual(waveformPeaks(new Float32Array(100),10),new Array(10).fill(0));
 assert.deepEqual(waveformPeaks(Float32Array.from([0,-.5,1,0]),2),[.5,1]);
 const serialized=JSON.parse(JSON.stringify({config,analysis}));assert.deepEqual(serialized.config,config);
+// Hold notes: present on a plain grid, always leave time to release, never back to back, indexes stay consecutive.
+{const grid=createSongChart({duration:60,bpm:120}),holds=grid.events.filter(e=>e.hold);assert.ok(holds.length>=3,'Notes longues sur une grille');
+grid.events.forEach((e,i)=>{assert.equal(e.index,i);const next=grid.events[i+1];if(!e.hold)return;assert.ok(e.hold>=.5&&e.hold<=2.4);if(next)assert.ok(next.time-(e.time+e.hold)>=.29,'Le temps de relâcher');assert.ok(!next?.hold,'Pas deux notes longues de suite');});
+const ev=t=>({time:t,beat:true,supported:true});
+close(markHolds([ev(0),ev(.5),ev(1),ev(1.5),ev(2),ev(4),ev(4.5)],true)[4].hold,1.7);
+const quiet=markHolds([ev(0),ev(.5),ev(1),ev(1.5),ev(2),{time:2.5,beat:true,supported:false},ev(3),ev(3.5)],true);assert.equal(quiet.length,7,'Le temps sans attaque est absorbé');close(quiet[4].hold,.7);
+assert.ok(!markHolds([ev(0),ev(.5),ev(1)],true).some(e=>e.hold),'Pas de note longue sans passage tenu');}
 console.log('Cartes musicales : sections 120→180→90 BPM, contretemps, offset, fenêtres, aperçu, fin et forme d’onde validés.');

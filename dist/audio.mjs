@@ -278,6 +278,11 @@ export class Soundtrack {
     this.accent(t,.4);this.crack(t,.45,'bandpass',900,.12);
     for(const [i,hz]of [2637,3520].entries())this.tone(t+.05+i*.06,hz,.09,'sine',.07,this.effectsGain);// coin ting
   }
+  holdTick(final=false){
+    if(!this.ctx||this.ctx.state!=='running'||!this.sfx||!this.playing)return;const t=this.ctx.currentTime;
+    this.crack(t,final?.5:.3,'bandpass',final?3600:2600,.03);const thump=this.tone(t,130,.1,'sine',.22,this.effectsGain);thump.frequency.exponentialRampToValueAtTime(50,t+.08);
+    if(final)this.accent(t,.35);
+  }
   comboBreak(){
     if(!this.ctx||this.ctx.state!=='running'||!this.sfx)return;const t=this.ctx.currentTime;
     const fall=this.tone(t,260,.3,'sawtooth',.1,this.effectsGain);fall.frequency.exponentialRampToValueAtTime(55,t+.28);this.crack(t,.25,'lowpass',500,.15);
