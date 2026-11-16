@@ -37,10 +37,34 @@ export function recordGrade(s,trackId,grade){
   if(previous&&GRADES.indexOf(previous)<=GRADES.indexOf(grade))return false;
   s.grades[trackId]=grade;return true;
 }
+// Daily challenge: same track and goal for everyone on a given day, chosen from the day string.
+export const CHALLENGES=[{kind:'combo',target:16},{kind:'combo',target:32},{kind:'grade',target:'A'},{kind:'grade',target:'S'},{kind:'perfects',target:40},{kind:'perfects',target:80}];
+export function previousDay(day){const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);}
+export function dailyChallenge(day,trackIds){
+  if(!trackIds?.length)return null;
+  let h=2166136261;for(const ch of day)h=Math.imul(h^ch.charCodeAt(0),16777619)>>>0;
+  const ids=[...trackIds].sort();// sorted so reordering the playlist does not change today's challenge
+  return {day,trackId:ids[h%ids.length],...CHALLENGES[(h>>>8)%CHALLENGES.length]};
+}
+export function challengeMet(c,{combo=0,grade=null,perfects=0}={}){
+  if(!c)return false;
+  if(c.kind==='combo')return combo>=c.target;
+  if(c.kind==='grade')return GRADES.includes(grade)&&GRADES.indexOf(grade)<=GRADES.indexOf(c.target);
+  return perfects>=c.target;
+}
+// Missing a day only restarts the streak; nothing is ever taken away.
+export function dailyStreak(s,day){return s.daily.lastDone===day||s.daily.lastDone===previousDay(day)?s.daily.streak:0;}
+export function completeChallenge(s,day){
+  if(s.daily.lastDone===day)return 0;
+  s.daily.streak=s.daily.lastDone===previousDay(day)?s.daily.streak+1:1;s.daily.lastDone=day;
+  // Five minutes of school income (5 coins minimum), +10 % per streak day up to +70 %.
+  const reward=Math.round(Math.max(5,autoIncome(s)*300)*(1+Math.min(s.daily.streak-1,7)*.1)*100)/100;
+  addCoins(s,reward);return reward;
+}
 export function freshState(now = Date.now()) {
   return { version: 1, dojoLit: false, coins: 0, stage: 1, hp: enemyHealth(1), kills: 0,
     hits: 0, perfects: 0, dodges: 0, dodgesMissed: 0, bestCombo: 0, totalCoins: 0, totalDamage: 0,
-    runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[], grades:{},
+    runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[], grades:{}, daily:{lastDone:'',streak:0},
     upgrades: { power: 0, echo: 0, adept:0, master:0, focus: 0, fury: 0 }, savedAt: now };
 }
 export function rival(stage){
@@ -155,6 +179,7 @@ export function restoreState(raw, now = Date.now()) {
   s.achievements=Array.isArray(raw.achievements)?ACHIEVEMENTS.filter(a=>raw.achievements.includes(a.id)).map(a=>a.id):[];
   // Grades come from imported save files too: keep only short ids and known letters.
   if(raw.grades&&typeof raw.grades==='object')for(const [id,grade]of Object.entries(raw.grades).slice(0,1000))if(id.length<=200&&GRADES.includes(grade))s.grades[id]=grade;
+  if(typeof raw.daily?.lastDone==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(raw.daily.lastDone)&&Number.isInteger(raw.daily.streak))s.daily={lastDone:raw.daily.lastDone,streak:Math.max(0,Math.min(100000,raw.daily.streak))};
   s.hp = Number.isFinite(raw.hp) && raw.hp > 0 ? Math.min(raw.hp, enemyHealth(s.stage)) : enemyHealth(s.stage);
   for (const key of Object.keys(UPGRADE_INFO)) {
     const level = raw.upgrades?.[key];

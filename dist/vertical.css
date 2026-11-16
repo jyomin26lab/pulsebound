@@ -211,3 +211,8 @@
 .end-grade span{font:800 13px/1.3 var(--font);letter-spacing:.5px}
 .grade-badge{display:inline-grid;place-items:center;min-width:1.5em;margin-right:6px;padding:0 4px;background:var(--grade);color:#fff;font:900 italic 12px/1.4 var(--display);vertical-align:middle}
 @media(prefers-reduced-motion:reduce){.end-grade strong{animation:none}}
+/* Daily challenge card: same shape as the goal card, cooler colour, green once done. */
+.daily-card{display:flex;align-items:center;width:100%;margin:0 0 14px;text-align:left;background:#ffd36b;cursor:pointer}
+.daily-card[hidden]{display:none}
+.daily-card.done{background:#9fdcbc;border-left-color:#2f9e6b}
+.end-daily{background:#2f9e6b;color:#fff}

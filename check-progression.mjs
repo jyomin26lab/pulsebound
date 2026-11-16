@@ -33,4 +33,11 @@ import("./dist/core.mjs").then(({songGrade,recordGrade})=>{
   const g=freshState();assert.equal(recordGrade(g,"neon","B"),true);assert.equal(recordGrade(g,"neon","C"),false);assert.equal(g.grades.neon,"B");assert.equal(recordGrade(g,"neon","S"),true);assert.equal(recordGrade(g,"",  "S"),false);
   assert.deepEqual(restoreState({version:1,grades:{neon:"S",bad:"Z",x:5}}).grades,{neon:"S"},"Notes importées filtrées");assert.equal(restoreState(JSON.parse(JSON.stringify(g))).grades.neon,"S");
 });
+import("./dist/core.mjs").then(({dailyChallenge,challengeMet,completeChallenge,dailyStreak,previousDay})=>{
+  const ids=["neon","chrome","after"],c=dailyChallenge("2026-11-16",ids);assert.deepEqual(dailyChallenge("2026-11-16",[...ids].reverse()),c,"Même défi quel que soit l’ordre");assert.ok(ids.includes(c.trackId));assert.equal(dailyChallenge("2026-11-16",[]),null);
+  assert.equal(previousDay("2026-03-01"),"2026-02-28");assert.equal(challengeMet({kind:"combo",target:32},{combo:32}),true);assert.equal(challengeMet({kind:"grade",target:"A"},{grade:"B"}),false);assert.equal(challengeMet({kind:"grade",target:"A"},{grade:"S"}),true);assert.equal(challengeMet({kind:"perfects",target:40},{perfects:39}),false);
+  const d=freshState();assert.equal(completeChallenge(d,"2026-11-15"),5);assert.equal(completeChallenge(d,"2026-11-15"),0,"Une seule récompense par jour");assert.equal(completeChallenge(d,"2026-11-16"),5.5);assert.equal(d.daily.streak,2);
+  assert.equal(dailyStreak(d,"2026-11-17"),2);assert.equal(dailyStreak(d,"2026-11-19"),0);completeChallenge(d,"2026-11-19");assert.equal(d.daily.streak,1,"Un jour manqué relance la série sans rien retirer");
+  assert.deepEqual(restoreState({version:1,daily:{lastDone:"hier",streak:3}}).daily,{lastDone:"",streak:0});assert.deepEqual(restoreState(JSON.parse(JSON.stringify(d))).daily,d.daily);
+});
 console.log('Progression : trois producteurs, paliers, succès uniques, migration, sacs renforcés, prestige, Flow 32 temps et absence validés.');

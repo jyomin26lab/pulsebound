@@ -1,6 +1,6 @@
 import { judgePlayable } from './input-timing.mjs';
 import { DeviceCalibration } from './device-calibration.mjs';
-import { SAVE_KEY, freshState, restoreState, offlineReward, enemyHealth, enemyReward, attackPower, autoPower, autoIncome, producerIncome, earnPassive, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, PRODUCERS, MILESTONES, ACHIEVEMENTS, producerUnlocked, producerMultiplier, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade } from './core.mjs';
+import { SAVE_KEY, freshState, restoreState, offlineReward, enemyHealth, enemyReward, attackPower, autoPower, autoIncome, producerIncome, earnPassive, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, PRODUCERS, MILESTONES, ACHIEVEMENTS, producerUnlocked, producerMultiplier, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade, dailyChallenge, challengeMet, completeChallenge, dailyStreak } from './core.mjs';
 import { FlowMeter } from './flow.mjs';
 import { MusicLibrary } from './music-library.mjs';
 import { freestyleInterval, IMPACT_STYLES } from './audio-sfx.mjs';
@@ -160,6 +160,10 @@ function showSongEnd(){
   // Only a fully manual run in rhythm mode is graded; Freestyle and Auto have no misses to count.
   const grade=settings.rhythmMode==='tempo'&&!song.auto?songGrade({perfects,goods:hits-perfects,notes:hits+song.missed}):null;
   const best=recordGrade(state,library.current?.id,grade);if(best){save();renderPlaylist();}
+  const day=today(),challenge=dailyChallenge(day,library.items.map(track=>track.id));
+  const dailyReward=settings.rhythmMode==='tempo'&&!song.auto&&challenge?.trackId===library.current?.id&&challengeMet(challenge,{combo:song.combo,grade,perfects})?completeChallenge(state,day):0;
+  if(dailyReward){save();renderDaily();}
+  $('#end-daily').hidden=!dailyReward;$('#end-daily').textContent='DÉFI DU JOUR RÉUSSI · +'+coinGain.format(dailyReward)+' PIÈCES · SÉRIE '+state.daily.streak+' J';
   $('#end-title').textContent=$('#track-title').textContent;
   $('#end-grade').hidden=!grade;$('#end-grade').dataset.grade=grade||'';$('#end-grade-letter').textContent=grade||'';
   $('#end-grade-note').textContent=best?'NOUVELLE MEILLEURE NOTE':'Meilleure : '+(state.grades[library.current?.id]||grade||'');
@@ -168,10 +172,23 @@ function showSongEnd(){
   $('#end-perfects').textContent=hits?perfects+' / '+hits:'—';
   $('#end-record').hidden=!record;
   $('#song-end').showModal();
-  if(record||best){scene.celebrate('flow');audio.cue('milestone');}
+  if(record||best||dailyReward){scene.celebrate('flow');audio.cue('milestone');}
 }
 $('#end-next').addEventListener('click',()=>{$('#song-end').close();void advanceTrack(1,true);});
 $('#end-replay').addEventListener('click',()=>{$('#song-end').close();$('#restart-session').click();});
+function today(){return new Date().toLocaleDateString('en-CA');}// local YYYY-MM-DD
+function challengeText(c){return c.kind==='combo'?'Fais un combo de '+c.target:c.kind==='grade'?'Obtiens la note '+c.target+(c.target==='S'?'':' ou mieux'):'Réussis '+c.target+' Parfaits';}
+// shortcut: refreshed when the playlist renders, not at midnight; add a timer if players keep the page open overnight.
+function renderDaily(){
+  const day=today(),challenge=dailyChallenge(day,library.items.map(track=>track.id)),card=$('#daily-card');
+  card.hidden=!challenge;if(!challenge)return;
+  const track=library.items.find(item=>item.id===challenge.trackId),done=state.daily.lastDone===day,streak=dailyStreak(state,day);
+  card.dataset.trackId=challenge.trackId;card.classList.toggle('done',done);
+  $('#daily-label').textContent=(done?'Réussi · ':'')+challengeText(challenge);
+  $('#daily-detail').textContent=(track?.title||'')+(streak?' · série de '+streak+' jour'+(streak>1?'s':''):'');
+  $('#daily-state').textContent=done?'✓':'↗';
+}
+$('#daily-card').addEventListener('click',()=>{const id=$('#daily-card').dataset.trackId;if(id)void chooseTrack(id);});
 $('#dojo-continue').addEventListener('click',()=>{
   $('#dojo-reveal').hidden=true;
   void advanceTrack(1,true);
@@ -393,7 +410,7 @@ function renderPlaylist(){
     for(const [action,text,label,disabled]of [['up','↑','Monter',index===0],['down','↓','Descendre',index===library.items.length-1],['remove','×','Retirer',false]]){const button=document.createElement('button');button.className='playlist-action '+action;button.dataset.action=action;button.textContent=text;button.disabled=disabled;button.setAttribute('aria-label',label+' '+track.title);row.append(button);}
     list.append(row);
   });
-  $$('[data-original]').forEach(button=>button.disabled=library.order.includes(button.dataset.original));setTrackUI();
+  $$('[data-original]').forEach(button=>button.disabled=library.order.includes(button.dataset.original));setTrackUI();renderDaily();
 }
 async function ensureTrack(){
   const track=library.current,id=track?.id||'silent';if(loadedId===id)return;
