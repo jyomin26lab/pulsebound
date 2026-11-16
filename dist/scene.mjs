@@ -14,7 +14,7 @@ export class DojoScene {
     this.poses=Object.fromEntries(Object.entries(HERO_SPRITES).map(([id, sprite])=>[id, artwork('./sprites/'+sprite.file)]));
     this.motion=!matchMedia('(prefers-reduced-motion: reduce)').matches;this.intense=true;
     this.actions={hero:{kind:'idle',time:0},enemy:{kind:'idle',time:0}};
-    this.particles=[];this.floats=[];this.shakeAt=-1000;this.shakePower=0;this.holdUntil=0;this.holdTime=0;
+    this.particles=[];this.floats=[];this.shakeAt=-1000;this.shakePower=0;this.holdUntil=0;this.holdTime=0;this.zoomAt=-1000;this.zoomPower=0;this.flashAt=-1000;this.rings=[];
     this.bagStrikes=[];
     this.resize();new ResizeObserver(()=>this.resize()).observe(canvas);
   }
@@ -40,15 +40,20 @@ export class DojoScene {
   }
   impact({side='enemy',damage='',critical=false,dodge=false,now=performance.now()}={}){
     const x=this.layout.bagX,y=this.height*.45;
-    this.burst(x,y,dodge?'#a6efff':critical?'#ffe2a0':'#ffc58b',critical?28:dodge?14:17,now);
+    this.burst(x,y,dodge?'#a6efff':critical?'#ffe2a0':'#ffc58b',critical?90:dodge?20:40,now);
     if(damage)this.floats.push({text:String(damage),x,y:y-15,time:now,color:critical?'#ffe4a4':dodge?'#b9f3ff':'#fff2de',large:critical});
     this.floats=this.floats.slice(-12);
-    if(this.motion&&this.intense&&!dodge){this.shakeAt=now;this.shakePower=critical?4:2;this.holdTime=now;this.holdUntil=now+(critical?55:32);}
+    if(this.motion&&this.intense&&!dodge){
+      this.shakeAt=now;this.shakePower=critical?16:7;this.holdTime=now;this.holdUntil=now+(critical?90:45);
+      this.zoomAt=now;this.zoomPower=critical?.12:.05;this.ring(x,y,critical?'#fff1c4':'#ffc58b',critical?1.6:1,now);
+      if(critical)this.flashAt=now;
+    }
   }
   celebrate(kind='victory',now=performance.now()){
-    this.burst(this.width*.5,this.height*.4,kind==='flow'?'#ffe2a0':'#f9bb7c',kind==='flow'?54:36,now);
-    if(this.motion&&this.intense){this.shakeAt=now;this.shakePower=kind==='flow'?4:2;}
+    this.burst(this.width*.5,this.height*.4,kind==='flow'?'#ffe2a0':'#f9bb7c',kind==='flow'?160:90,now);
+    if(this.motion&&this.intense){this.shakeAt=now;this.shakePower=kind==='flow'?18:8;this.zoomAt=now;this.zoomPower=kind==='flow'?.14:.06;this.ring(this.width*.5,this.height*.4,'#ffe2a0',2.2,now);}
   }
+  ring(x,y,color,size,now){this.rings.push({x,y,color,size,time:now});this.rings=this.rings.slice(-8);}
   strikeBag(now=performance.now(),power=1){this.bagStrikes.push({time:now,power});this.bagStrikes=this.bagStrikes.slice(-5);}
   bag(now,reinforced){
     const c=this.ctx,w=this.width,h=this.height,x=this.layout.bagX,anchor=h*.055,width=Math.max(36,Math.min(100,w*(this.mobile?.15:.145))),top=h*.21,height=h*(this.mobile?.48:.58);
@@ -73,9 +78,9 @@ export class DojoScene {
   }
   burst(x,y,color,count,now){
     count=this.motion?(this.intense?count:Math.min(6,count)):0;
-    for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=45+Math.random()*190;
-      this.particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-25,size:2+Math.random()*4,life:.3+Math.random()*.45,time:now,color,angle});}
-    this.particles=this.particles.slice(-160);
+    for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=80+Math.random()*420;
+      this.particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-40,size:3+Math.random()*6,life:.35+Math.random()*.6,time:now,color,angle});}
+    this.particles=this.particles.slice(-600);
   }
   fighter(x,y,height,side,now,preparation=0,dance=false,musicalBeat=0){
     const c=this.ctx,action=this.actions[side],elapsed=(now-action.time)/1000,duration=(action.duration||300)/1000;
@@ -141,16 +146,25 @@ export class DojoScene {
   }
   effects(now){
     const c=this.ctx;this.particles=this.particles.filter(p=>(now-p.time)/1000<p.life);
+    this.rings=this.rings.filter(r=>now-r.time<380);
+    for(const r of this.rings){const p=(now-r.time)/380;if(p<0)continue;c.save();c.globalAlpha=1-p;c.strokeStyle=r.color;c.lineWidth=12*(1-p)*r.size;c.beginPath();c.arc(r.x,r.y,(14+p*90)*r.size,0,Math.PI*2);c.stroke();c.restore();}
+    c.save();c.globalCompositeOperation='lighter';
     for(const p of this.particles){const t=(now-p.time)/1000;if(t<0)continue;const fade=1-t/p.life;
       c.save();c.translate(p.x+p.vx*t,p.y+p.vy*t+90*t*t);c.rotate(p.angle+t*3);c.globalAlpha=fade;c.fillStyle=p.color;
       c.beginPath();c.moveTo(-p.size,0);c.lineTo(p.size*2*fade,0);c.lineTo(0,p.size*.7);c.closePath();c.fill();c.restore();}
+    c.restore();
     this.floats=this.floats.filter(f=>now-f.time<800);
     for(const f of this.floats){const p=(now-f.time)/800;if(p<0)continue;c.save();c.globalAlpha=Math.min(1,(1-p)*3);c.fillStyle=f.color;c.shadowColor='#1a0f1c';c.shadowBlur=7;c.textAlign='center';c.font=`700 ${f.large?30:23}px "Space Grotesk",sans-serif`;c.fillText(f.text,f.x,f.y-(this.motion?p*40:0));c.restore();}
   }
   render(now,{upcomingMove='punch',arenaVisible=true,lit=false,playing=false,beatPhase=1,preparation=0,dance=false,musicalBeat=0,flow=false,tier=0,disciples=0,boss=false}={}){
     this.preparedMove=upcomingMove;
     const c=this.ctx,w=this.width,h=this.height;c.clearRect(0,0,w,h);c.save();
-    if(this.motion&&this.intense){const t=(now-this.shakeAt)/180;if(t>=0&&t<1)c.translate(Math.sin(t*43)*this.shakePower*(1-t),Math.cos(t*37)*this.shakePower*.5*(1-t));}
+    if(this.motion&&this.intense){
+      const t=(now-this.shakeAt)/280,shake=t>=0&&t<1?this.shakePower*(1-t):0,z=(now-this.zoomAt)/240;
+      // Punch-in on the bag; the extra scale hides the empty edges the shake would reveal.
+      const scale=1+(z>=0&&z<1?this.zoomPower*(1-z)**2:0)+shake*2.2/Math.min(w,h),fx=this.layout.bagX,fy=h*.45;
+      c.translate(fx+Math.sin(t*43)*shake,fy+Math.cos(t*37)*shake*.6);c.scale(scale,scale);c.translate(-fx,-fy);
+    }
     c.fillStyle='#29232b';c.fillRect(0,0,w,h);
     const reveal=this.motion?Math.min(1,Math.max(0,(now-(this.litAt??-2000))/1200)):1;
     if(!lit || reveal<1 || !this.rooms[1].naturalWidth)this.drawRoom(this.rooms[0]);
@@ -163,5 +177,7 @@ export class DojoScene {
     const height=Math.min(h*1.12,w*.84),y=h*.12,poseTime=now<this.holdUntil?this.holdTime:now;
     this.bag(now,boss);this.fighter(w*(this.mobile?.18:w<600?.34:.30),this.mobile?h*.34:y,height,'hero',poseTime,preparation,dance,musicalBeat);
     this.effects(now);c.restore();
+    // Single short, soft white flash on critical hits only (kept well under photosensitivity thresholds).
+    const f=(now-this.flashAt)/110;if(this.motion&&this.intense&&f>=0&&f<1){c.fillStyle=`rgba(255,250,235,${.4*(1-f)})`;c.fillRect(0,0,w,h);}
   }
 }
