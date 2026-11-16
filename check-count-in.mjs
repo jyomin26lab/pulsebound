@@ -3,7 +3,7 @@ import {Soundtrack} from './dist/audio.mjs';
 class Context {
   constructor(){this.state='running';this.currentTime=10;this.sampleRate=44100;this.destination={};this.scheduled=[];}
   node(){return {connect:n=>n,disconnect(){},gain:{setValueAtTime(){},exponentialRampToValueAtTime(){},setTargetAtTime(){}},threshold:{},ratio:{}};}
-  createGain(){return this.node();}createDynamicsCompressor(){return this.node();}
+  createGain(){return this.node();}createDynamicsCompressor(){return this.node();}createConvolver(){return this.node();}
   createBuffer(c,length){return {getChannelData:()=>new Float32Array(length)};}
   createBufferSource(){return {...this.node(),start(at,offset){this.at=at;this.offset=offset;},stop(){}};}
   createOscillator(){const voice={...this.node(),frequency:{setValueAtTime(){}},start(at){this.at=at;},stop(at){this.stopAt=at;}};this.scheduled.push(voice);return voice;}

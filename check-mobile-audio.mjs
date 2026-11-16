@@ -6,7 +6,7 @@ class LockedContext{
   constructor(){this.currentTime=0;this.sampleRate=44100;this.state='suspended';this.destination={};this.resumes=0;this.allowed=false;}
   resume(){this.resumes++;if(!this.allowed)return new Promise(()=>{});this.state='running';return Promise.resolve();}
   node(){return {connect(n){return n;},disconnect(){},gain:{value:0,setTargetAtTime(){}},threshold:{},ratio:{}};}
-  createGain(){return this.node();}createDynamicsCompressor(){return this.node();}
+  createGain(){return this.node();}createDynamicsCompressor(){return this.node();}createConvolver(){return this.node();}
   createBuffer(channels,length){const data=new Float32Array(length);return {getChannelData:()=>data};}
   createBufferSource(){return {...this.node(),start(){},stop(){}};}
   decodeAudioData(){return Promise.resolve({duration:8});}

@@ -49,3 +49,19 @@ export function impactSamples(sampleRate, {style='leather', critical=false, perf
   return data;
 }
 export function freestyleInterval(time,last){return Number.isFinite(last)?Math.max(.085,Math.min(.5,time-last)):.3;}
+/** Stereo impulse response of a small wooden dojo: pre-delay, a few early reflections, then a tail that darkens as it decays. */
+export function reverbImpulse(sampleRate,seconds=1.6,seed=7){
+  if(!Number.isFinite(sampleRate)||sampleRate<8000)throw new RangeError('Fréquence audio invalide.');
+  const length=Math.ceil(sampleRate*seconds),preDelay=Math.round(sampleRate*.012),channels=[new Float32Array(length),new Float32Array(length)];
+  const taps=[[.011,.5],[.023,.36],[.037,.27],[.053,.2],[.071,.14]];
+  channels.forEach((data,side)=>{
+    let rng=(seed+side*977)>>>0,low=0;
+    for(let i=preDelay;i<length;i++){
+      const t=(i-preDelay)/sampleRate;rng=(Math.imul(rng,1664525)+1013904223)>>>0;
+      const noise=rng/2147483648-1,damping=Math.max(.04,.75*Math.exp(-t*2.2));// one-pole lowpass closes over time: warm wood, not metal
+      low+=damping*(noise-low);data[i]=low*Math.exp(-t*3.4)*(1-t/seconds)*.55;
+    }
+    for(const [time,gain]of taps){const at=preDelay+Math.round(sampleRate*(time+side*.0035));if(at<length)data[at]+=gain*(side?.9:1);}
+  });
+  return channels;
+}

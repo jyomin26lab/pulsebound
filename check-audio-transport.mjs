@@ -6,7 +6,7 @@ class TestAudioContext {
   resume(){this.state='running';return Promise.resolve();}
   node(){return {connect(node){return node;},disconnect(){},gain:{value:0,setTargetAtTime(){}},threshold:{value:0},ratio:{value:0}};}
   createGain(){return this.node();}
-  createDynamicsCompressor(){return this.node();}
+  createDynamicsCompressor(){return this.node();}createConvolver(){return this.node();}
   createBuffer(channels,length){const data=new Float32Array(length);return {getChannelData:()=>data};}
   createBufferSource(){
     const source=this.node();source.start=(at,offset)=>{source.startAt=at;source.offset=offset;this.started.push(source);};source.stop=()=>{};return source;

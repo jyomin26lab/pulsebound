@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { MusicLibrary,moveItem } from './dist/music-library.mjs';
-import {impactSamples,freestyleInterval} from './dist/audio-sfx.mjs';
+import {impactSamples,freestyleInterval,reverbImpulse} from './dist/audio-sfx.mjs';
 class MemoryStore{
   constructor(){this.records=new Map();this.queue=undefined;}
   async load(){return structuredClone({records:[...this.records.values()],queue:this.queue});}
@@ -28,4 +28,5 @@ for(const samples of [normal,critical,variant]){
 }
 assert.notDeepEqual(normal,variant);assert.ok(critical.length>normal.length);
 assert.equal(freestyleInterval(1,NaN),.3);assert.equal(freestyleInterval(1,0),.5);assert.equal(freestyleInterval(1,.99),.085);
+{const [left,right]=reverbImpulse(48000);assert.equal(left.length,Math.ceil(48000*1.6));assert.notDeepEqual(left.slice(2000,2100),right.slice(2000,2100),"Réverbe stéréo");const energy=(d,a,b)=>d.slice(a,b).reduce((s,v)=>s+v*v,0);assert.ok(energy(left,0,7680)>50*energy(left,69120,76800),"La queue de réverbe s’éteint");assert.ok(left.every(v=>Number.isFinite(v)&&Math.abs(v)<1));assert.ok(left.slice(0,500).every(v=>v===0),"Pré-délai");}
 console.log('Playlist : fichiers persistés, sélection, ordre, suppression/annulation, boucle, liste vide et repli validés. SFX sans écrêtage, variantes et Freestyle validés.');

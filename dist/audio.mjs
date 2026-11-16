@@ -1,7 +1,8 @@
 import { demoAccent } from './rhythm.mjs';
 import { AudioClock } from './audio-clock.mjs';
 import { BeatConductor } from './beat-conductor.mjs';
-import { impactSamples, IMPACT_STYLES } from './audio-sfx.mjs';
+import { impactSamples, IMPACT_STYLES, reverbImpulse } from './audio-sfx.mjs';
+import { comboTier } from './scene.mjs';
 import { withDeadline } from './audio-import.mjs';
 export const TRACKS = {
   neon: { title: 'Neon Ronin', genre: 'SYNTHWAVE', bpm: 112, root: 55, scale: [0, 0, 7, 10, 0, 3, 7, 5] },
@@ -37,6 +38,10 @@ export class Soundtrack {
       this.master.gain.value = 1;
       this.musicGain=this.ctx.createGain();this.musicGain.gain.value=this.volume;this.musicGain.connect(this.master);
       this.effectsGain=this.ctx.createGain();this.effectsGain.gain.value=this.sfxVolume;this.effectsGain.connect(this.master);
+      // Room reverb on effects only (the player's music stays dry); the send follows the effects volume.
+      this.reverb=this.ctx.createConvolver();const impulse=reverbImpulse(this.ctx.sampleRate),room=this.ctx.createBuffer(2,impulse[0].length,this.ctx.sampleRate);
+      impulse.forEach((channel,index)=>room.getChannelData(index).set(channel));this.reverb.buffer=room;
+      this.reverbSend=this.ctx.createGain();this.reverbSend.gain.value=.2;this.effectsGain.connect(this.reverbSend).connect(this.reverb).connect(this.master);
       const compressor = this.ctx.createDynamicsCompressor();
       compressor.threshold.value = -12;
       compressor.ratio.value = 5;
@@ -226,16 +231,30 @@ export class Soundtrack {
     }
   }
   async previewImpact(){await this.init();this.playImpact(false);}
-  hit(grade,critical=false) {
+  hit(grade,critical=false,combo=0) {
     if (!this.ctx || !this.playing || !this.sfx) return;
-    this.playImpact(critical,grade==='perfect');
+    this.playImpact(critical,grade==='perfect',combo);
   }
-  playImpact(critical=false,perfect=false) {
+  playImpact(critical=false,perfect=false,combo=0) {
     if (!this.ctx || this.ctx.state!=='running') return;
     if(this.voices.size>=12){const oldest=this.voices.values().next().value;try{oldest.stop();}catch{}this.voices.delete(oldest);}
+    const now=this.ctx.currentTime,tier=comboTier(combo);
     const source=this.ctx.createBufferSource();source.buffer=this.impactBanks[this.impactStyle][(perfect?6:0)+(critical?3:0)+(this.impactVariant++%3)];
-    if(source.playbackRate)source.playbackRate.value=1+(Math.random()-.5)*.07;
-    source.connect(this.effectsGain);source.onended=()=>{source.disconnect();this.voices.delete(source);};this.voices.add(source);source.start();
+    if(source.playbackRate)source.playbackRate.value=1+(Math.random()-.5)*.07+tier*.025;// the impact climbs in pitch as the combo grows
+    let out=this.effectsGain;
+    if(this.ctx.createStereoPanner){const pan=this.ctx.createStereoPanner();pan.pan.value=(Math.random()-.5)*.36;pan.connect(this.effectsGain);out=pan;}
+    source.connect(out);source.onended=()=>{source.disconnect();if(out!==this.effectsGain)out.disconnect();this.voices.delete(source);};this.voices.add(source);source.start();
+    // Sub thump under every hit, heavier with the combo.
+    const thump=this.tone(now,critical?95:120,critical?.3:.16,'sine',(critical?.5:.22)*(1+tier*.25),this.effectsGain);thump.frequency.exponentialRampToValueAtTime(38,now+(critical?.26:.14));
+    if(critical)this.accent(now,.55);
+  }
+  /** Boom + bright crack + a short swell of the room reverb, for crits and big moments. */
+  accent(time,power=.5){
+    const boom=this.tone(time,70,.6,'sine',.4*power+.1,this.effectsGain);boom.frequency.exponentialRampToValueAtTime(32,time+.5);
+    const crack=this.ctx.createBufferSource(),filter=this.ctx.createBiquadFilter(),gain=this.ctx.createGain();
+    crack.buffer=this.noise;filter.type='highpass';filter.frequency.value=2400;gain.gain.setValueAtTime(.3*power,time);gain.gain.exponentialRampToValueAtTime(.001,time+.09);
+    crack.connect(filter).connect(gain).connect(this.effectsGain);crack.start(time);crack.stop(time+.1);crack.onended=()=>{crack.disconnect();filter.disconnect();gain.disconnect();};
+    const send=this.reverbSend.gain;send.cancelScheduledValues(time);send.setValueAtTime(send.value,time);send.linearRampToValueAtTime(.2+.4*power,time+.03);send.setTargetAtTime(.2,time+.12,.25);
   }
   evade() {
     if (!this.ctx || !this.playing || !this.sfx) return;
@@ -245,9 +264,11 @@ export class Soundtrack {
   cue(kind){
     if(!this.ctx||this.ctx.state!=='running'||!this.sfx)return;
     const notes={purchase:[440,660,880],milestone:[440,554,660,880],boss:[220,330,440,660],flow:[220,440,660,880],prestige:[330,440,554,660,880]};
+    const big=['boss','flow','prestige','milestone'].includes(kind);
     for(const [i,hz]of (notes[kind]||notes.purchase).entries()){
-      this.tone(this.ctx.currentTime+i*.055,hz,.17,'triangle',.075,this.effectsGain);
-      this.tone(this.ctx.currentTime+i*.055+.075,hz*2,.11,'sine',.015,this.effectsGain);
+      this.tone(this.ctx.currentTime+i*.055,hz,big?.42:.17,'triangle',.075,this.effectsGain);
+      this.tone(this.ctx.currentTime+i*.055+.075,hz*2,big?.3:.11,'sine',big?.03:.015,this.effectsGain);
     }
+    if(big)this.accent(this.ctx.currentTime,kind==='milestone'?.45:.85);
   }
 }
