@@ -33,7 +33,7 @@ assert.equal(restoreState({ ...s, dodges: undefined }).dodges,0);
 assert.equal(restoreState({ ...s, stage: -5, hp: NaN }).stage, 1);
 assert.equal(restoreState({ ...s, upgrades: { echo: -4 } }).upgrades.echo, 0);
 s.savedAt = 0;
-assert.equal(offlineReward(s, 3600_000).reward, 720);
+assert.equal(offlineReward(s, 3600_000).reward, 360);
 s.savedAt = 0;
 assert.equal(offlineReward(s, 24 * 3600_000).seconds, 8 * 3600);
 for (const bpm of [87, 112, 120, 144]) {

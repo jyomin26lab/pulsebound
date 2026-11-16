@@ -41,7 +41,7 @@ export function producerMultiplier(level){return 2**MILESTONES.filter(n=>level>=
 export function producerPower(s,key){const p=PRODUCERS[key];return p?s.upgrades[key]*p.dps*producerMultiplier(s.upgrades[key])*(1+s.upgrades.power*.08)*legacyMultiplier(s):0;}
 export function autoPower(s) { return Object.keys(PRODUCERS).reduce((sum,key)=>sum+producerPower(s,key),0); }
 export function producerIncome(s,key){const p=PRODUCERS[key];return p?s.upgrades[key]*p.income*producerMultiplier(s.upgrades[key])*legacyMultiplier(s):0;}
-export function autoIncome(s){return Object.keys(PRODUCERS).reduce((sum,key)=>sum+producerIncome(s,key),0.1);}
+export function autoIncome(s){return Object.keys(PRODUCERS).reduce((sum,key)=>sum+producerIncome(s,key),0);}
 export function earnPassive(s,seconds,boost=false){
   if(!Number.isFinite(seconds)||seconds<=0)return 0;
   const amount=autoIncome(s)*seconds*(boost?3:1);addCoins(s,amount);return amount;
