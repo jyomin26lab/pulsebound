@@ -26,4 +26,11 @@ fast.charge=100;fast.armed=true;fast.beat({songTime:0});fast.resync(64);assert.e
 const map=demoMap('neon',112);for(let i=0;i<100;i++)assert.equal(map.event(i).action,'punch','Aucune esquive dans la session de frappe');
 const capped=freshState();capped.upgrades.echo=1;capped.savedAt=0;assert.equal(offlineReward(capped,86400_000).seconds,28800);assert.equal(offlineReward(capped,86400_000).reward,0,'Pas de double récompense d’absence');
 assert.ok(currentGoal(freshState()).label);addCoins(capped,NaN);assert.ok(Number.isFinite(capped.coins));
+import("./dist/core.mjs").then(({songGrade,recordGrade})=>{
+  assert.equal(songGrade({perfects:15,goods:0,notes:15}),null,"Moins de 16 notes : pas de note");
+  assert.equal(songGrade({perfects:18,goods:0,notes:20}),"S");assert.equal(songGrade({perfects:16,goods:4,notes:20}),"S");
+  assert.equal(songGrade({perfects:13,goods:4,notes:20}),"A");assert.equal(songGrade({perfects:9,goods:4,notes:20}),"B");assert.equal(songGrade({perfects:2,goods:4,notes:20}),"C");
+  const g=freshState();assert.equal(recordGrade(g,"neon","B"),true);assert.equal(recordGrade(g,"neon","C"),false);assert.equal(g.grades.neon,"B");assert.equal(recordGrade(g,"neon","S"),true);assert.equal(recordGrade(g,"",  "S"),false);
+  assert.deepEqual(restoreState({version:1,grades:{neon:"S",bad:"Z",x:5}}).grades,{neon:"S"},"Notes importées filtrées");assert.equal(restoreState(JSON.parse(JSON.stringify(g))).grades.neon,"S");
+});
 console.log('Progression : trois producteurs, paliers, succès uniques, migration, sacs renforcés, prestige, Flow 32 temps et absence validés.');

@@ -203,3 +203,11 @@
 .end-record{margin:14px 0 0;padding:8px 12px;text-align:center;font:900 italic 18px/1.2 var(--display);color:#1b1410;background:var(--gold,#efb734);animation:end-record .6s ease-out}
 @keyframes end-record{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.end-record{animation:none}}
+/* Per-song grade: S gold, A green, B blue, C grey, on the end card and in the playlist. */
+[data-grade=S]{--grade:#efb734}[data-grade=A]{--grade:#2f9e6b}[data-grade=B]{--grade:#3f7fc4}[data-grade=C]{--grade:#8a8f8c}
+.end-grade{display:flex;align-items:center;gap:14px;margin-top:14px}
+.end-grade[hidden]{display:none}
+.end-grade strong{display:grid;place-items:center;width:72px;height:72px;border:4px solid var(--ink,#142b30);background:var(--grade);color:#fff;font:900 italic 46px/1 var(--display);text-shadow:0 2px 0 #0006;animation:end-record .6s ease-out}
+.end-grade span{font:800 13px/1.3 var(--font);letter-spacing:.5px}
+.grade-badge{display:inline-grid;place-items:center;min-width:1.5em;margin-right:6px;padding:0 4px;background:var(--grade);color:#fff;font:900 italic 12px/1.4 var(--display);vertical-align:middle}
+@media(prefers-reduced-motion:reduce){.end-grade strong{animation:none}}

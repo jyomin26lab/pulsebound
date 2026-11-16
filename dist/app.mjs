@@ -1,6 +1,6 @@
 import { judgePlayable } from './input-timing.mjs';
 import { DeviceCalibration } from './device-calibration.mjs';
-import { SAVE_KEY, freshState, restoreState, offlineReward, enemyHealth, enemyReward, attackPower, autoPower, autoIncome, producerIncome, earnPassive, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, PRODUCERS, MILESTONES, ACHIEVEMENTS, producerUnlocked, producerMultiplier, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier } from './core.mjs';
+import { SAVE_KEY, freshState, restoreState, offlineReward, enemyHealth, enemyReward, attackPower, autoPower, autoIncome, producerIncome, earnPassive, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, PRODUCERS, MILESTONES, ACHIEVEMENTS, producerUnlocked, producerMultiplier, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade } from './core.mjs';
 import { FlowMeter } from './flow.mjs';
 import { MusicLibrary } from './music-library.mjs';
 import { freestyleInterval, IMPACT_STYLES } from './audio-sfx.mjs';
@@ -37,8 +37,8 @@ try{
     if(Number.isFinite(raw.sfxVolume))settings.sfxVolume=Math.max(0,Math.min(100,raw.sfxVolume));
   }
 }catch{storageAvailable=false;}
-let sessionHits=0,song={coins:0,perfects:0,hits:0,best:0,combo:0};
-function resetSong(){sessionHits=0;song={coins:state.totalCoins,perfects:state.perfects,hits:state.hits,best:state.bestCombo,combo:0};}
+let sessionHits=0,song={coins:0,perfects:0,hits:0,best:0,combo:0,missed:0,auto:false};
+function resetSong(){sessionHits=0;song={coins:state.totalCoins,perfects:state.perfects,hits:state.hits,best:state.bestCombo,combo:0,missed:0,auto:false};}
 const trophyQueue=[];let trophyTimer;
 const welcome=offlineReward(state);
 try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch{storageAvailable=false;}
@@ -156,14 +156,19 @@ function handleTransport(event){
 }
 // End-of-song card: the moment players usually leave, so make "one more" the easiest action.
 function showSongEnd(){
-  const hits=state.hits-song.hits,record=song.combo>song.best;
+  const hits=state.hits-song.hits,perfects=state.perfects-song.perfects,record=song.combo>song.best;
+  // Only a fully manual run in rhythm mode is graded; Freestyle and Auto have no misses to count.
+  const grade=settings.rhythmMode==='tempo'&&!song.auto?songGrade({perfects,goods:hits-perfects,notes:hits+song.missed}):null;
+  const best=recordGrade(state,library.current?.id,grade);if(best){save();renderPlaylist();}
   $('#end-title').textContent=$('#track-title').textContent;
+  $('#end-grade').hidden=!grade;$('#end-grade').dataset.grade=grade||'';$('#end-grade-letter').textContent=grade||'';
+  $('#end-grade-note').textContent=best?'NOUVELLE MEILLEURE NOTE':'Meilleure : '+(state.grades[library.current?.id]||grade||'');
   $('#end-coins').textContent='+'+coinGain.format(state.totalCoins-song.coins);
   $('#end-combo').textContent=song.combo+'×';
-  $('#end-perfects').textContent=hits?(state.perfects-song.perfects)+' / '+hits:'—';
+  $('#end-perfects').textContent=hits?perfects+' / '+hits:'—';
   $('#end-record').hidden=!record;
   $('#song-end').showModal();
-  if(record){scene.celebrate('flow');audio.cue('milestone');}
+  if(record||best){scene.celebrate('flow');audio.cue('milestone');}
 }
 $('#end-next').addEventListener('click',()=>{$('#song-end').close();void advanceTrack(1,true);});
 $('#end-replay').addEventListener('click',()=>{$('#song-end').close();$('#restart-session').click();});
@@ -304,7 +309,7 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
     const previous=rhythm.event(judgment.index-1),next=rhythm.event(judgment.index+1);
     interval=Math.max(.12,Math.min(1.5,previous&&next?(next.time-previous.time)/2:next?next.time-judgment.event.time:previous?judgment.event.time-previous.time:60/audio.bpm));
   }
-  if(!automated)state.hits++;
+  if(!automated)state.hits++;else song.auto=true;
   const weight=interval/(60/112),boost=flow.active&&audio.playing;
   if(judgment.grade!=='miss'){
     if(!automated)sessionHits++;
@@ -384,7 +389,7 @@ function renderPlaylist(){
     const row=document.createElement('li');row.dataset.trackId=track.id;row.draggable=true;row.className='playlist-row'+(track.id===library.selected?' selected':'');
     const drag=document.createElement('span');drag.className='drag-grip';drag.textContent='⠿';drag.setAttribute('aria-hidden','true');row.append(drag);
     const choose=document.createElement('button');choose.className='playlist-choose';choose.dataset.action='select';choose.setAttribute('aria-pressed',String(track.id===library.selected));choose.title=track.title;
-    const title=document.createElement('strong');title.textContent=track.title;const meta=document.createElement('small');meta.textContent=durationText(track.duration)+' · '+number.format(track.bpm)+' BPM'+(track.builtin?' · DOJO':'');choose.append(title,meta);row.append(choose);
+    const title=document.createElement('strong');title.textContent=track.title;if(state.grades[track.id]){const badge=document.createElement('span');badge.className='grade-badge';badge.dataset.grade=state.grades[track.id];badge.textContent=state.grades[track.id];badge.title='Meilleure note';title.prepend(badge);}const meta=document.createElement('small');meta.textContent=durationText(track.duration)+' · '+number.format(track.bpm)+' BPM'+(track.builtin?' · DOJO':'');choose.append(title,meta);row.append(choose);
     for(const [action,text,label,disabled]of [['up','↑','Monter',index===0],['down','↓','Descendre',index===library.items.length-1],['remove','×','Retirer',false]]){const button=document.createElement('button');button.className='playlist-action '+action;button.dataset.action=action;button.textContent=text;button.disabled=disabled;button.setAttribute('aria-label',label+' '+track.title);row.append(button);}
     list.append(row);
   });
@@ -587,7 +592,7 @@ function frame(now){
     if(audio.playing&&!sessionMenuOpen&&!$$('dialog[open]').length&&settings.rhythmMode==='tempo'){
       let expired;
       while((expired=rhythm.event(lastExpired+1))&&clock>expired.time+rhythm.windows(expired,state.upgrades.focus).good){
-        if(!resolved.has(expired.index)){judgeFlash('miss');if(combo>0){combo=0;flow.miss();$('#timing-text').textContent='REPRENDS LE FLOW';}}
+        if(!resolved.has(expired.index)){song.missed++;judgeFlash('miss');if(combo>0){combo=0;flow.miss();$('#timing-text').textContent='REPRENDS LE FLOW';}}
         resolved.delete(expired.index-4);lastExpired++;
       }
     }

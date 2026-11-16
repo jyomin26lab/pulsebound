@@ -24,10 +24,23 @@ export const ACHIEVEMENTS=[
   {id:'master',name:'La transmission',text:'Recruter un maître',reward:5.0,test:s=>s.upgrades.master>=1},
   {id:'legacy',name:'Un nouveau départ',text:'Transmettre ton dojo',reward:1.0,test:s=>s.prestiges>=1}
 ];
+export const GRADES=['S','A','B','C'];
+// Good counts half a perfect; under 16 judged notes (skipped or very short) there is no grade.
+export function songGrade({perfects=0,goods=0,notes=0}={}){
+  if(!(notes>=16))return null;
+  const accuracy=(perfects+goods*.5)/notes;
+  return accuracy>=.9?'S':accuracy>=.75?'A':accuracy>=.55?'B':'C';
+}
+export function recordGrade(s,trackId,grade){
+  if(!trackId||!GRADES.includes(grade))return false;
+  const previous=s.grades[trackId];
+  if(previous&&GRADES.indexOf(previous)<=GRADES.indexOf(grade))return false;
+  s.grades[trackId]=grade;return true;
+}
 export function freshState(now = Date.now()) {
   return { version: 1, dojoLit: false, coins: 0, stage: 1, hp: enemyHealth(1), kills: 0,
     hits: 0, perfects: 0, dodges: 0, dodgesMissed: 0, bestCombo: 0, totalCoins: 0, totalDamage: 0,
-    runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[],
+    runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[], grades:{},
     upgrades: { power: 0, echo: 0, adept:0, master:0, focus: 0, fury: 0 }, savedAt: now };
 }
 export function rival(stage){
@@ -140,6 +153,8 @@ export function restoreState(raw, now = Date.now()) {
   if(!Number.isFinite(raw.runCoins))s.runCoins=s.totalCoins;
   if(!Number.isFinite(raw.bosses))s.bosses=Math.floor((s.stage-1)/5);
   s.achievements=Array.isArray(raw.achievements)?ACHIEVEMENTS.filter(a=>raw.achievements.includes(a.id)).map(a=>a.id):[];
+  // Grades come from imported save files too: keep only short ids and known letters.
+  if(raw.grades&&typeof raw.grades==='object')for(const [id,grade]of Object.entries(raw.grades).slice(0,1000))if(id.length<=200&&GRADES.includes(grade))s.grades[id]=grade;
   s.hp = Number.isFinite(raw.hp) && raw.hp > 0 ? Math.min(raw.hp, enemyHealth(s.stage)) : enemyHealth(s.stage);
   for (const key of Object.keys(UPGRADE_INFO)) {
     const level = raw.upgrades?.[key];
