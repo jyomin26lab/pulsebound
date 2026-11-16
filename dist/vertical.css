@@ -298,3 +298,6 @@
   .dojo-sidebar>.secondary-button{display:none}
   .perk{padding:6px 12px}
 }
+
+/* Less text: the song's name next to the daily challenge and the empty note lines are noise. */
+#daily-detail,.beginner-hint,.library-note:empty,.school-status>span{display:none}

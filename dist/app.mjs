@@ -205,20 +205,20 @@ function renderVenue(){
     $('#venue-items').replaceChildren(...v.items.map(item=>{
       const button=document.createElement('button');button.type='button';button.className='perk';button.dataset.item=item.id;
       const name=document.createElement('strong');name.textContent=item.name;
-      const text=document.createElement('span');text.textContent=[item.students?'+'+item.students+' élève'+(item.students>1?'s':''):'',item.comfort?'confort +'+Math.round(item.comfort*100)+' %':''].filter(Boolean).join(' · ');
+      const text=document.createElement('span');text.textContent=[item.students?'+'+item.students+' élève'+(item.students>1?'s':''):'',item.comfort?'+'+Math.round(item.comfort*100)+' %':''].filter(Boolean).join(' · ');
       const price=document.createElement('em');button.append(name,text,price);return button;
     }));
   }
   $('#venue-level').textContent=state.venue;$('#venue-name').textContent=v.name;
-  $('#venue-stats').textContent=students(state)+' élève'+(students(state)>1?'s':'')+' · '+format(Math.floor(state.fans))+' fans · confort ×'+coinGain.format(comfort(state))+' · ≈ '+format(sessionPayout(state))+' pièces par séance'+(state.dimension?' · dimension '+(state.dimension+1):'');
+  $('#venue-stats').textContent=students(state)+' élève'+(students(state)>1?'s':'')+' · '+format(Math.floor(state.fans))+' fans'+(state.dimension?' · dimension '+(state.dimension+1):'');
   $$('#venue-items .perk').forEach(button=>{
     const item=v.items.find(entry=>entry.id===button.dataset.item),owned=state.items.includes(item.id);
     button.disabled=owned||state.coins<item.cost;button.classList.toggle('owned',owned);
-    button.querySelector('em').textContent=owned?'Installé':format(item.cost)+' pièces';
+    button.querySelector('em').textContent=owned?'✓':format(item.cost);
   });
   const next=VENUES[state.venue],expandButton=$('#venue-expand');
   expandButton.disabled=!(canExpand(state)||canJump(state));
-  expandButton.textContent=canJump(state)?'Saut de dimension · recettes ×2 pour toujours ↗':!next?'Dojo final : équipe-le pour ouvrir le portail':!fullyEquipped(state)?'Équipe tout le dojo pour pouvoir agrandir':'Agrandir → '+next.name+' · '+format(expandCost(state))+' pièces';
+  expandButton.textContent=canJump(state)?'Saut de dimension ↗':!next?'Dernier dojo':'Agrandir → '+next.name+' · '+format(expandCost(state));
 }
 $('#venue-items').addEventListener('click',event=>{
   const id=event.target.closest('[data-item]')?.dataset.item,item=venueOf(state).items.find(entry=>entry.id===id);if(!item||!buyItem(state,id))return;
@@ -287,7 +287,7 @@ function updateUI(){
   document.body.classList.toggle('auto-striking',autoEnabled);
   $('#auto-strike').setAttribute('aria-pressed',String(autoEnabled));$('#auto-strike span').textContent=autoEnabled?(audio.playing?'AUTO ON':'AUTO PAUSE'):'AUTO OFF';
   $$('[data-impact-style]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.impactStyle===settings.impactStyle)));
-  $('#technique-status').textContent='SON DES COUPS · '+IMPACT_STYLES[settings.impactStyle].label+' · Touche un style pour écouter et le choisir.';
+  $('#technique-status').textContent='SON · '+IMPACT_STYLES[settings.impactStyle].label;
   $('#previous-track').disabled=!libraryLoaded||trackLoading||importing||!library.next(-1);$('#next-track').disabled=!libraryLoaded||trackLoading||importing||!library.next(1);
   const boost=flow.active&&audio.playing,opponent=rival(state.stage),goal=currentGoal(state),income=sessionPayout(state);
   $('#coins').textContent=format(state.coins);$('#shop-coins').textContent=format(state.coins);$('#session-coins').textContent=format(state.coins);
@@ -297,14 +297,14 @@ function updateUI(){
   $('#combo-count').innerHTML=combo+'<span>×</span>';
   $('#combo-run-label').textContent='ENCHAÎNEMENT · '+combo%8+' / 8';$$('#combo-chain i').forEach((dot,i)=>dot.classList.toggle('lit',i<combo%8));
   $('#stage-count').textContent=String(state.stage).padStart(2,'0');$('#enemy-name').textContent=opponent.name;
-  $('#hero-mastery').textContent='POINGS ARDENTS · NIV. '+state.upgrades.power;
+  $('#hero-mastery').textContent='FORCE · NIV. '+state.upgrades.power;
   const health=state.hp/enemyHealth(state.stage)*100;
   $('#enemy-health').style.width=health+'%';$('.health-track').setAttribute('aria-valuenow',Math.round(health));
   $('.battle-card').classList.toggle('is-boss',opponent.boss);$('#rival-tag').textContent=opponent.hint;
   const count=students(state);
   $('#school-count').textContent=count;$('#school-count-label').textContent=count>1?'élèves':'élève';
-  $('#school-title').textContent=venueOf(state).name.toUpperCase()+' · NIV. '+state.venue;renderVenue();
-  $('#goal-label').textContent=goal.label;$('#goal-detail').textContent=goal.detail+' · '+format(Math.min(goal.current,goal.target))+' / '+format(goal.target);
+  $('#school-title').textContent=venueOf(state).name.toUpperCase();renderVenue();
+  $('#goal-label').textContent=goal.label;$('#goal-detail').textContent=format(Math.min(goal.current,goal.target))+' / '+format(goal.target);
   $('#goal-progress').style.width=Math.min(100,goal.current/goal.target*100)+'%';
   document.body.classList.toggle('flowing',boost);document.body.classList.toggle('flow-ready',flow.armed);
   const charge=flow.active?flow.remaining/32*100:flow.charge;
@@ -321,7 +321,7 @@ function updateUI(){
   $('.dojo-button').dataset.affordable=affordable||venueOf(state).items.some(item=>!state.items.includes(item.id)&&state.coins>=item.cost)||canExpand(state)||canJump(state);
   renderPerks();$('#legacy-seals').textContent=format(state.seals);$('#legacy-bonus').textContent='+'+format(Math.round((legacyMultiplier(state)-1)*100))+' %';
   const gain=prestigeGain(state);$('#legacy-gain').textContent='+'+gain+' sceau'+(gain>1?'x':'');$('#prepare-prestige').disabled=gain<1;
-  $('#legacy-requirement').textContent=state.venue<2?'Achète d’abord ta première salle : on ne transmet pas un coin de rue.':!canTransmit(state)?'Ton dojo est devenu trop célèbre pour être transmis. Vise le dojo high-tech alien et le saut de dimension.':gain>0?'Ton école est prête. Une nouvelle voie s’ouvre à toi.':'Gagne 12 000 pièces dans cette école pour transmettre. Progression : '+format(state.runCoins)+' / 12 000 pièces.';
+  $('#legacy-requirement').textContent=state.venue<2?'Achète d’abord une salle.':!canTransmit(state)?'Trop célèbre pour transmettre : vise le saut de dimension.':gain>0?'Prêt à transmettre.':format(state.runCoins)+' / 12 000';
   if($('#stats-dialog').open)updateStats();
 }
 function updateStats(){
@@ -502,7 +502,7 @@ const durationText=t=>Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'
 function renderPlaylist(){
   const list=$('#playlist-list');list.replaceChildren();$('#playlist-count').textContent=library.items.length;$('#playlist-empty').hidden=library.items.length>0;
   $('#playlist-repeat').checked=library.repeat;
-  $('.library-note').textContent=library.persistent?'Tes sons restent sur cet appareil et sont conservés dans ce navigateur.':'Stockage limité : les nouveaux sons peuvent ne rester que pour cette session.';
+  $('.library-note').textContent=library.persistent?'':'Stockage limité : les nouveaux sons peuvent ne rester que pour cette session.';
   library.items.forEach((track,index)=>{
     const row=document.createElement('li');row.dataset.trackId=track.id;row.draggable=true;row.className='playlist-row'+(track.id===library.selected?' selected':'');
     const drag=document.createElement('span');drag.className='drag-grip';drag.textContent='⠿';drag.setAttribute('aria-hidden','true');row.append(drag);

@@ -252,8 +252,8 @@ export function prestige(s,now=Date.now(),random=Math.random){
 export function currentGoal(s){
   if(canJump(s))return {label:'Un portail s’ouvre',detail:'Saut de dimension : recettes ×2 pour toujours',current:1,target:1,action:'dojo'};
   const next=venueOf(s).items.filter(item=>!s.items.includes(item.id)).sort((a,b)=>a.cost-b.cost)[0];
-  if(next)return {label:'Équipe : '+venueOf(s).name,detail:next.name,current:s.coins,target:next.cost,action:'dojo'};
-  return {label:'Agrandis ton dojo',detail:VENUES[s.venue].name,current:s.coins,target:expandCost(s),action:'dojo'};
+  if(next)return {label:next.name,detail:venueOf(s).name,current:s.coins,target:next.cost,action:'dojo'};
+  return {label:'Agrandir',detail:VENUES[s.venue].name,current:s.coins,target:expandCost(s),action:'dojo'};
 }
 export function beatAction(beat) { return beat >= 0 && beat % 8 === 7 ? 'dodge' : 'punch'; }
 export function actionOutcome(action, expected, grade, guard, riposte = false) {
