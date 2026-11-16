@@ -65,7 +65,8 @@ export class DojoScene {
   comboBreak(now=performance.now()){this.breakAt=now;}
   celebrate(kind='victory',now=performance.now(),text=''){
     // A broken bag shows its reward in big gold digits and freezes the pose a beat longer (hit-stop on the kill).
-    if(text){this.floats.push({text,x:this.layout.bagX,y:this.height*.3,time:now,color:'#ffd36b',large:true});this.floats=this.floats.slice(-12);if(this.motion&&this.intense){this.holdTime=now;this.holdUntil=now+120;}}
+    if(text){this.floats.push({text,x:this.layout.bagX,y:this.height*.3,time:now,color:'#ffd36b',large:true});this.floats=this.floats.slice(-12);}
+    if(kind==='victory'){this.burst(this.layout.bagX,this.height*.45,'#f9bb7c',45,now);return;}
     this.burst(this.width*.5,this.height*.4,kind==='flow'?'#ffe2a0':'#f9bb7c',kind==='flow'?160:90,now);
     if(this.motion&&this.intense){this.shakeAt=now;this.shakePower=kind==='flow'?18:8;this.zoomAt=now;this.zoomPower=kind==='flow'?.14:.06;this.ring(this.width*.5,this.height*.4,'#ffe2a0',2.2,now);}
   }
@@ -84,9 +85,13 @@ export class DojoScene {
     if(this.motion)for(let left=dt;left>0;left-=.008)swingStep(this.swing,Math.min(.008,left),away,toward);else this.swing={angle:0,velocity:0};
     // Knock-out: the old bag hangs during the hit-stop, flies off spinning, then the next one drops from the ceiling.
     const ej=this.ejection,et=ej?(now-ej.at)/1000:9;let drop=0;
-    if(ej&&et>=1.05)this.ejection=null;
-    else if(ej&&et>=0&&et<.6){this.flyingBag(now,ej,et,x,top,width,height);return;}
-    else if(ej&&et>=.6){drop=(1-Math.min(1,(et-.6)/.45))**2;this.swing={angle:0,velocity:0};}
+    // Done once the new bag is down and the exit glow has faded (wide screens take longer to leave).
+    if(ej&&et>=1.15&&(ej.koAt?now-ej.koAt>=450:et>=1.4)){this.ejection=null;this.swing.velocity+=.9;}// the new bag settles with a gentle sway
+    else if(ej&&et>=0){
+      if(et<1.4&&!(ej.koAt&&now-ej.koAt>150))this.flyingBag(now,ej,et,x,anchor,top,width,height);
+      const p=Math.min(1,Math.max(0,(et-.55)/.6));if(p<=0)return;
+      drop=1-(1+2.2*(p-1)**3+1.2*(p-1)**2);this.swing={angle:0,velocity:0};// ease-out-back: slight overshoot, then rest
+    }
     if(ej&&et<0)reinforced=ej.reinforced;
     c.save();c.translate(x,anchor-drop*(top+height+60));
     c.rotate(-this.swing.angle);
@@ -103,24 +108,27 @@ export class DojoScene {
   // Smash-style launch, only one at a time and only with motion effects on.
   ejectBag(now=performance.now(),{reinforced=false,finisher=false}={}){
     if(this.ejection||!this.motion||!this.intense)return;
-    const hold=finisher?180:110,power=finisher?1.6:1;
-    this.ejection={at:now+hold,reinforced,finisher,vx:(650+450*power)*(this.mobile?.7:1),vy:-(700+350*power),spin:8+5*power};
-    this.holdTime=now;this.holdUntil=now+hold;this.zoomAt=now;this.zoomPower=finisher?.22:.1;
-    this.shakeAt=now+hold;this.shakePower=finisher?24:12;if(finisher)this.flashAt=now+hold;
+    // A readable arc (about half a second on screen) rather than a teleport; the camera stays calm.
+    const hold=finisher?120:70,power=finisher?1.4:1;
+    this.ejection={at:now+hold,reinforced,finisher,vx:(260+120*power)*(this.mobile?.8:1),vy:-(480+120*power),spin:4+2.5*power};
+    this.holdTime=now;this.holdUntil=now+hold;this.zoomAt=now;this.zoomPower=finisher?.1:.05;
+    this.shakeAt=now+hold;this.shakePower=finisher?12:6;if(finisher)this.flashAt=now+hold;
   }
-  flyingBag(now,ej,et,x,top,width,height){
-    const c=this.ctx,w=this.width,bx=x+ej.vx*et,by=top+height/2+ej.vy*et+1800*et*et,vy=ej.vy+3600*et;
-    const len=Math.hypot(ej.vx,vy),ux=ej.vx/len,uy=vy/len;
-    c.save();c.strokeStyle='rgba(255,246,220,.7)';c.lineWidth=3;
-    for(const k of [-1.2,-.4,.4,1.2]){const ox=-uy*k*width*.45,oy=ux*k*width*.45;c.beginPath();c.moveTo(bx+ox-ux*width*.6,by+oy-uy*width*.6);c.lineTo(bx+ox-ux*(width*.6+90),by+oy-uy*(width*.6+90));c.stroke();}
-    c.translate(bx,by);c.rotate(ej.spin*et);c.translate(0,-height/2);this.bagBody(width,height,ej.reinforced);c.restore();
-    if(!ej.koAt&&(bx>w+width*.3||by<-width*.3)){ej.koAt=now;ej.koX=Math.min(w-14,bx);ej.koY=Math.max(14,by);this.burst(ej.koX,ej.koY,ej.finisher?'#ffd36b':'#fff6d6',ej.finisher?70:35,now);this.shakeAt=now;this.shakePower=ej.finisher?14:7;}
+  flyingBag(now,ej,et,x,anchor,top,width,height){
+    const c=this.ctx,w=this.width,at=t=>({x:x+ej.vx*t,y:top+height/2+ej.vy*t+700*t*t,r:ej.spin*(t-t*t*.35)});// spin eases off a little
+    // The broken chain whips back up to the ceiling.
+    if(et<.25){const k=1-et/.25;c.save();c.strokeStyle='#ada59b';c.lineWidth=2;c.globalAlpha=k;for(const dx of [-width*.2,width*.2]){c.beginPath();c.moveTo(x,anchor);c.lineTo(x+dx*k+ej.vx*et*.3,anchor+(top-anchor)*k);c.stroke();}c.restore();}
+    // Soft motion blur: fading copies along the path just behind the bag.
+    for(let k=4;k>=0;k--){const t=et-k*.025;if(t<0)continue;const p=at(t);c.save();c.globalAlpha=k?.16*(1-k/5):1;c.translate(p.x,p.y);c.rotate(p.r);c.translate(0,-height/2);this.bagBody(width,height,ej.reinforced);c.restore();}
+    const p=at(et);
+    if(!ej.koAt&&(p.x>w+width*.4||p.y<-width*.4)){ej.koAt=now;ej.koX=Math.min(w-6,p.x);ej.koY=Math.max(6,p.y);this.burst(ej.koX,ej.koY,ej.finisher?'#ffd36b':'#fff3d6',ej.finisher?36:18,now);}
   }
+  // Soft light bloom where the bag leaves the screen (additive, so it glows instead of covering).
   koStar(now,ej){
-    const p=(now-ej.koAt)/350;if(p<0||p>=1)return;
-    const c=this.ctx,r=(ej.finisher?70:45)*(.6+p*.8);
-    c.save();c.translate(ej.koX,ej.koY);c.rotate(p*.6);c.globalAlpha=1-p;c.fillStyle=ej.finisher?'#ffd36b':'#fff6d6';
-    c.beginPath();for(let i=0;i<16;i++){const a=i*Math.PI/8,rr=i%2?r*.38:r;c.lineTo(Math.cos(a)*rr,Math.sin(a)*rr);}c.closePath();c.fill();c.restore();
+    const p=(now-ej.koAt)/450;if(p<0||p>=1)return;
+    const c=this.ctx,r=(ej.finisher?150:100)*(.5+p*.7),glow=c.createRadialGradient(ej.koX,ej.koY,0,ej.koX,ej.koY,r),color=ej.finisher?'255,205,110':'255,240,215';
+    glow.addColorStop(0,`rgba(${color},${.75*(1-p)**2})`);glow.addColorStop(.35,`rgba(${color},${.3*(1-p)**2})`);glow.addColorStop(1,`rgba(${color},0)`);
+    c.save();c.globalCompositeOperation='lighter';c.fillStyle=glow;c.fillRect(ej.koX-r,ej.koY-r,r*2,r*2);c.restore();
   }
   bagBody(width,height,reinforced){
     const c=this.ctx;
