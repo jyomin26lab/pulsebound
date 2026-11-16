@@ -37,6 +37,29 @@ export function recordGrade(s,trackId,grade){
   if(previous&&GRADES.indexOf(previous)<=GRADES.indexOf(grade))return false;
   s.grades[trackId]=grade;return true;
 }
+// Boons: pick one of three after each reinforced bag. Stacking bonuses last until the next transmission.
+export const BOONS={
+  income:{label:'Ferveur',text:'+20 % de revenu de l’école'},
+  power:{label:'Poings de braise',text:'+15 % de dégâts par frappe'},
+  crit:{label:'Œil du tigre',text:'+4 % de chances de critique'},
+  auto:{label:'Discipline',text:'+25 % de dégâts de l’école'},
+  bag:{label:'Butin',text:'+25 % de pièces par sac brisé'},
+  recruit:{label:'Deux recrues',text:'+2 disciples gratuits',instant:true},
+  coins:{label:'Offrande',text:'2 minutes de revenu tout de suite (3 pièces min.)',instant:true}
+};
+export function boon(s,id){return s.boons?.[id]||0;}
+export function boonChoices(random=Math.random){
+  const ids=Object.keys(BOONS);
+  for(let i=ids.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
+  return ids.slice(0,3);
+}
+export function applyBoon(s,id){
+  if(!Object.hasOwn(BOONS,id))return false;
+  if(id==='recruit')s.upgrades.echo=Math.min(UPGRADE_INFO.echo.max,s.upgrades.echo+2);
+  else if(id==='coins')addCoins(s,Math.max(3,autoIncome(s)*120));
+  else s.boons[id]=boon(s,id)+1;
+  return true;
+}
 // Daily challenge: same track and goal for everyone on a given day, chosen from the day string.
 export const CHALLENGES=[{kind:'combo',target:16},{kind:'combo',target:32},{kind:'grade',target:'A'},{kind:'grade',target:'S'},{kind:'perfects',target:40},{kind:'perfects',target:80}];
 export function previousDay(day){const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);}
@@ -64,7 +87,7 @@ export function completeChallenge(s,day){
 export function freshState(now = Date.now()) {
   return { version: 1, dojoLit: false, coins: 0, stage: 1, hp: enemyHealth(1), kills: 0,
     hits: 0, perfects: 0, dodges: 0, dodgesMissed: 0, bestCombo: 0, totalCoins: 0, totalDamage: 0,
-    runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[], grades:{}, daily:{lastDone:'',streak:0},
+    runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[], grades:{}, daily:{lastDone:'',streak:0}, boons:{},
     upgrades: { power: 0, echo: 0, adept:0, master:0, focus: 0, fury: 0 }, savedAt: now };
 }
 export function rival(stage){
@@ -73,11 +96,11 @@ export function rival(stage){
 export function enemyHealth(stage) { return Math.round(90 * Math.pow(1.16, stage - 1)*Math.pow(1.08,Math.max(0,stage-5))*(stage%5===0?3:1)); }
 export function enemyReward(stage) { return (5 + Math.min(stage-1,95)) * (stage%5===0?4:1) / 100; }
 export function legacyMultiplier(s){return 1+(s.seals||0)*.2;}
-export function attackPower(s) { return (8 + s.upgrades.power * 4)*legacyMultiplier(s); }
+export function attackPower(s) { return (8 + s.upgrades.power * 4)*legacyMultiplier(s)*(1+.15*boon(s,'power')); }
 export function producerMultiplier(level){return 2**MILESTONES.filter(n=>level>=n).length;}
-export function producerPower(s,key){const p=PRODUCERS[key];return p?s.upgrades[key]*p.dps*producerMultiplier(s.upgrades[key])*(1+s.upgrades.power*.08)*legacyMultiplier(s):0;}
+export function producerPower(s,key){const p=PRODUCERS[key];return p?s.upgrades[key]*p.dps*producerMultiplier(s.upgrades[key])*(1+s.upgrades.power*.08)*legacyMultiplier(s)*(1+.25*boon(s,'auto')):0;}
 export function autoPower(s) { return Object.keys(PRODUCERS).reduce((sum,key)=>sum+producerPower(s,key),0); }
-export function producerIncome(s,key){const p=PRODUCERS[key];return p?s.upgrades[key]*p.income*producerMultiplier(s.upgrades[key])*legacyMultiplier(s):0;}
+export function producerIncome(s,key){const p=PRODUCERS[key];return p?s.upgrades[key]*p.income*producerMultiplier(s.upgrades[key])*legacyMultiplier(s)*(1+.2*boon(s,'income')):0;}
 export function autoIncome(s){return Object.keys(PRODUCERS).reduce((sum,key)=>sum+producerIncome(s,key),0);}
 export function earnPassive(s,seconds,boost=false){
   if(!Number.isFinite(seconds)||seconds<=0)return 0;
@@ -104,7 +127,7 @@ export function damageEnemy(s, amount) {
   s.totalDamage = Math.min(1e30,s.totalDamage+amount);
   while (amount >= s.hp && defeats<500) {
     amount -= s.hp;
-    addCoins(s, enemyReward(s.stage));
+    addCoins(s, enemyReward(s.stage)*(1+.25*boon(s,'bag')));
     if(s.stage%5===0)s.bosses++;
     s.kills++;
     s.stage=Math.min(500,s.stage+1);s.highestStage=Math.max(s.highestStage,s.stage);
@@ -124,7 +147,7 @@ export function judgeTiming(seconds, bpm, offset = 0, calibrationMs = 0, focus =
   return { beat, error, grade: Math.abs(error) <= perfectWindow ? 'perfect' : Math.abs(error) <= goodWindow ? 'good' : 'miss' };
 }
 export function hitDamage(s, grade, combo, random = Math.random()) {
-  const critical = grade !== 'miss' && random < 0.05 + s.upgrades.fury * 0.025;
+  const critical = grade !== 'miss' && random < 0.05 + s.upgrades.fury * 0.025 + boon(s,'crit') * 0.04;
   const multiplier = grade === 'perfect' ? 2.7 : grade === 'good' ? 1.4 : 0.25;
   return { damage: Math.round(attackPower(s) * multiplier * (1 + Math.min(combo, 50) * 0.025) * (critical ? 2 : 1)), critical };
 }
@@ -139,7 +162,7 @@ export function prestige(s,now=Date.now()){
   const gain=prestigeGain(s);if(gain<1)return 0;
   s.seals+=gain;s.prestiges++;s.coins=0;s.runCoins=0;s.stage=1;s.hp=enemyHealth(1);s.savedAt=now;
   for(const key of Object.keys(UPGRADE_INFO))s.upgrades[key]=0;
-  s.upgrades.power=1;if(s.seals>=3)s.upgrades.echo=1;
+  s.boons={};s.upgrades.power=1;if(s.seals>=3)s.upgrades.echo=1;
   return gain;
 }
 export function currentGoal(s){
@@ -180,6 +203,7 @@ export function restoreState(raw, now = Date.now()) {
   // Grades come from imported save files too: keep only short ids and known letters.
   if(raw.grades&&typeof raw.grades==='object')for(const [id,grade]of Object.entries(raw.grades).slice(0,1000))if(id.length<=200&&GRADES.includes(grade))s.grades[id]=grade;
   if(typeof raw.daily?.lastDone==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(raw.daily.lastDone)&&Number.isInteger(raw.daily.streak))s.daily={lastDone:raw.daily.lastDone,streak:Math.max(0,Math.min(100000,raw.daily.streak))};
+  if(raw.boons&&typeof raw.boons==='object')for(const id of Object.keys(BOONS))if(Number.isInteger(raw.boons[id])&&raw.boons[id]>0)s.boons[id]=Math.min(1000,raw.boons[id]);
   s.hp = Number.isFinite(raw.hp) && raw.hp > 0 ? Math.min(raw.hp, enemyHealth(s.stage)) : enemyHealth(s.stage);
   for (const key of Object.keys(UPGRADE_INFO)) {
     const level = raw.upgrades?.[key];

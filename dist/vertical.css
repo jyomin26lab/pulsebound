@@ -216,3 +216,10 @@
 .daily-card[hidden]{display:none}
 .daily-card.done{background:#9fdcbc;border-left-color:#2f9e6b}
 .end-daily{background:#2f9e6b;color:#fff}
+/* Boon pick: three big cards, keyboard and touch friendly. */
+.boon-choices{display:grid;gap:10px;margin-top:16px}
+.boon-choice{display:grid;gap:3px;text-align:left;padding:14px 16px;border:2px solid var(--ink,#142b30);background:#fff4d6;color:var(--ink,#142b30);box-shadow:4px 4px 0 var(--ink,#142b30);cursor:pointer}
+.boon-choice strong{font:900 italic 20px/1.1 var(--display)}
+.boon-choice span{font:700 13px/1.3 var(--font)}
+.boon-choice small{font:800 10px var(--font);letter-spacing:.6px;color:#b45b25;text-transform:uppercase}
+.boon-choice:hover,.boon-choice:focus-visible{background:#ffd36b;outline:3px solid #b45b25;outline-offset:2px}

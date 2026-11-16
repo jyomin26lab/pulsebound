@@ -1,6 +1,6 @@
 import { judgePlayable } from './input-timing.mjs';
 import { DeviceCalibration } from './device-calibration.mjs';
-import { SAVE_KEY, freshState, restoreState, offlineReward, enemyHealth, enemyReward, attackPower, autoPower, autoIncome, producerIncome, earnPassive, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, PRODUCERS, MILESTONES, ACHIEVEMENTS, producerUnlocked, producerMultiplier, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade, dailyChallenge, challengeMet, completeChallenge, dailyStreak } from './core.mjs';
+import { SAVE_KEY, freshState, restoreState, offlineReward, enemyHealth, enemyReward, attackPower, autoPower, autoIncome, producerIncome, earnPassive, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, PRODUCERS, MILESTONES, ACHIEVEMENTS, producerUnlocked, producerMultiplier, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade, dailyChallenge, challengeMet, completeChallenge, dailyStreak, BOONS, boon, boonChoices, applyBoon } from './core.mjs';
 import { FlowMeter } from './flow.mjs';
 import { MusicLibrary } from './music-library.mjs';
 import { freestyleInterval, IMPACT_STYLES } from './audio-sfx.mjs';
@@ -176,6 +176,27 @@ function showSongEnd(){
 }
 $('#end-next').addEventListener('click',()=>{$('#song-end').close();void advanceTrack(1,true);});
 $('#end-replay').addEventListener('click',()=>{$('#song-end').close();$('#restart-session').click();});
+// Three boons after each reinforced bag. The song pauses during the pick and the combo is kept.
+// shortcut: a bag broken while the pick is already open gives no extra pick; queue them if idle damage gets that fast.
+let boonResume=null;
+function offerBoons(){
+  const dialog=$('#boon-dialog');if(dialog.open)return;
+  boonResume=audio.playing?{combo}:null;if(boonResume)audio.pause();
+  $('#boon-choices').replaceChildren(...boonChoices().map(id=>{
+    const button=document.createElement('button');button.type='button';button.className='boon-choice';button.dataset.boon=id;
+    const name=document.createElement('strong');name.textContent=BOONS[id].label;
+    const text=document.createElement('span');text.textContent=BOONS[id].text;
+    const level=document.createElement('small');level.textContent=BOONS[id].instant?'Immédiat':boon(state,id)?'Déjà ×'+boon(state,id):'Nouveau';
+    button.append(name,text,level);return button;
+  }));
+  dialog.showModal();dialog.querySelector('.boon-choice').focus();
+}
+$('#boon-dialog').addEventListener('cancel',event=>event.preventDefault());// a pick is required, Esc does not skip it
+$('#boon-choices').addEventListener('click',async event=>{
+  const id=event.target.closest('[data-boon]')?.dataset.boon;if(!id||!applyBoon(state,id))return;
+  save();$('#boon-dialog').close();toast('Don accordé · '+BOONS[id].label);scene.celebrate('flow');audio.cue('milestone');
+  if(boonResume){const kept=boonResume.combo;boonResume=null;await play();combo=kept;}
+});
 function today(){return new Date().toLocaleDateString('en-CA');}// local YYYY-MM-DD
 function challengeText(c){return c.kind==='combo'?'Fais un combo de '+c.target:c.kind==='grade'?'Obtiens la note '+c.target+(c.target==='S'?'':' ou mieux'):'Réussis '+c.target+' Parfaits';}
 // shortcut: refreshed when the playlist renders, not at midnight; add a timer if players keep the page open overnight.
@@ -285,7 +306,7 @@ function dealDamage(amount){
   const previousStage=state.highestStage;
   const before=state.bosses,count=damageEnemy(state,amount);if(!count)return 0;
   pulse($('.wallet'),'rewarding');scene.celebrate('victory');
-  if(state.bosses>before){showMoment('ÉPREUVE ACCOMPLIE','LE SAC CÈDE.','Ton école ouvre une nouvelle voie.','boss');audio.cue('boss');}
+  if(state.bosses>before){showMoment('ÉPREUVE ACCOMPLIE','LE SAC CÈDE.','Ton école ouvre une nouvelle voie.','boss');audio.cue('boss');offerBoons();}
   else if(state.stage%5===0)showMoment('ÉPREUVE · SÉRIE '+state.stage,'SAC RENFORCÉ','Une résistance supérieure. Une récompense ×4.','boss');
   const unlocked=Object.values(FORMS).filter(form=>form.stage>previousStage && form.stage<=state.highestStage);
   if(unlocked.length){showMoment('NOUVELLE TECHNIQUE',unlocked.map(form=>form.label).join(' + ').toUpperCase(),'Nova l’ajoute à ses enchaînements.','flow');scene.celebrate('flow');audio.cue('milestone');}

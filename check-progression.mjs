@@ -40,4 +40,12 @@ import("./dist/core.mjs").then(({dailyChallenge,challengeMet,completeChallenge,d
   assert.equal(dailyStreak(d,"2026-11-17"),2);assert.equal(dailyStreak(d,"2026-11-19"),0);completeChallenge(d,"2026-11-19");assert.equal(d.daily.streak,1,"Un jour manqué relance la série sans rien retirer");
   assert.deepEqual(restoreState({version:1,daily:{lastDone:"hier",streak:3}}).daily,{lastDone:"",streak:0});assert.deepEqual(restoreState(JSON.parse(JSON.stringify(d))).daily,d.daily);
 });
+import("./dist/core.mjs").then(({BOONS,boonChoices,applyBoon,attackPower,producerIncome,producerPower})=>{
+  const picks=boonChoices();assert.equal(picks.length,3);assert.equal(new Set(picks).size,3,"Trois dons différents");assert.ok(picks.every(id=>BOONS[id]));
+  const b=freshState();b.upgrades.echo=1;const income=producerIncome(b,"echo"),power=attackPower(b);
+  assert.equal(applyBoon(b,"income"),true);assert.ok(Math.abs(producerIncome(b,"echo")-income*1.2)<1e-12);applyBoon(b,"power");assert.ok(Math.abs(attackPower(b)-power*1.15)<1e-12);
+  applyBoon(b,"recruit");assert.equal(b.upgrades.echo,3);const before=b.coins;applyBoon(b,"coins");assert.ok(b.coins-before>=3);assert.equal(applyBoon(b,"nope"),false);
+  assert.deepEqual(restoreState(JSON.parse(JSON.stringify(b))).boons,{income:1,power:1});assert.deepEqual(restoreState({version:1,boons:{income:-2,hack:5,crit:2}}).boons,{crit:2});
+  b.stage=21;b.runCoins=12000;prestige(b);assert.deepEqual(b.boons,{},"La transmission remet les dons à zéro");
+});
 console.log('Progression : trois producteurs, paliers, succès uniques, migration, sacs renforcés, prestige, Flow 32 temps et absence validés.');
