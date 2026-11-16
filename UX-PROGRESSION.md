@@ -14,9 +14,9 @@ La boutique affiche les revenus de chaque formation et son prochain palier. Les 
 
 | Recrue | Premier prix | Revenu de base par recrue | Disponibilité |
 | --- | ---: | ---: | --- |
-| Disciple | 40 pièces | +1 pièce/s | Dès le début |
-| Adepte | 350 pièces | +6 pièces/s | Série 5 |
-| Maître | 2 400 pièces | +40 pièces/s | Série 10 |
+| Disciple | 5 pièces | +0,1 pièce/s | Dès le début |
+| Adepte | 65 pièces | +1 pièce/s | Série 5 |
+| Maître | 550 pièces | +8 pièces/s | Série 10 |
 
 Les revenus sont crédités directement, même si aucun sac n’est brisé et si la musique est en pause. Les sacs brisés ajoutent leur prime séparée. Les gains de frappe conservent leur pondération par l’intervalle entre coups ; la précision et le Flow augmentent les pièces reçues.
 
@@ -24,7 +24,7 @@ Les revenus sont crédités directement, même si aucun sac n’est brisé et si
 
 Le crédit de revenu utilise le temps réellement écoulé, sans perdre les secondes lors d’une image tardive. Les dégâts passifs conservent leur limite de rattrapage. Pendant l’absence, le jeu crédite le revenu régulier sans Flow ni simulation de sacs, jusqu’à huit heures. Les courtes absences sont aussi créditées ; la fenêtre de retour est réservée aux absences d’au moins 30 secondes.
 
-Les prix des améliorations restent inchangés : Poings 20 pièces, Focus 60, Furie 120. Leurs prix et ceux des recrues augmentent à chaque achat.
+Les prix des améliorations restent inchangés : Poings 3 pièces, Focus 12, Furie 24. Leurs prix et ceux des recrues augmentent à chaque achat.
 
 ## Conservation et vérification
 

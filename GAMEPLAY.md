@@ -5,7 +5,7 @@ Un sac de frappe, une seule action et une école qui grandit. Le dojo conserve l
 ## Boucle de progression
 
 1. Une bonne frappe rapporte des dégâts et des pièces immédiatement. Un sac brisé ajoute une récompense.
-2. Disciples, adeptes et maîtres rapportent directement 1, 6 et 40 pièces/s de base par recrue. Ils infligent aussi des dégâts automatiques ; les sacs brisés ajoutent une prime. Les poings améliorent les dégâts des frappes et de l’école. Le premier objectif invite à recruter un disciple.
+2. Disciples, adeptes et maîtres rapportent directement 0,1, 1 et 8 pièces/s de base par recrue. Ils infligent aussi des dégâts automatiques ; les sacs brisés ajoutent une prime. Les poings améliorent les dégâts des frappes et de l’école. Le premier objectif invite à recruter un disciple.
 3. Les paliers 10/25/50/100 doublent successivement la production du type de recrues concerné. Les coûts progressent à chaque achat.
 4. Les succès attribuent leur prime une seule fois et l’objectif principal oriente vers le prochain déblocage.
 5. Tous les cinq niveaux, un sac renforcé possède trois fois la résistance et rapporte quatre fois la prime du niveau.
