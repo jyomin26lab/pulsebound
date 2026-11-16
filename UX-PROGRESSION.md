@@ -31,3 +31,9 @@ Les prix des améliorations restent inchangés : Poings 3 pièces, Focus 12, Fur
 Les soldes, niveaux, trophées, playlists et réglages existants sont conservés. Les anciennes données de score déjà stockées ne sont plus lues ni utilisées ; aucune suppression du stockage musical n’est nécessaire.
 
 Les tests couvrent revenu direct, paliers, sceaux, Flow, durée réelle, absence plafonnée sans double crédit et restauration. Le simulateur économique inclut désormais ces revenus directs. Ses achats sont optimisés et ses résultats ne constituent pas une mesure de rétention ou une durée promise à un joueur.
+
+## Rythme des déblocages (16 novembre 2026)
+
+Le simulateur utilise désormais la vraie récompense de frappe (0,01 pièce) au lieu de 1,5. Mesure : premier disciple vers 0,6 à 1,9 min, adepte vers 4 à 6 min, maître vers 8 à 12 min, transmission vers 11 à 16 min. Les séries montent beaucoup plus vite que les pièces : la série 10 arrive en moins de 2 minutes. Les trois figures se débloquaient donc toutes dans la première minute ; elles arrivent maintenant aux séries 12, 22 et 28 et sont annoncées par une grande carte. Augmenter le seuil de transmission ou la croissance des prix des adeptes et maîtres ne rallonge la boucle que d'une à trois minutes : l'allonger nettement demanderait un rééquilibrage complet, à valider avec des joueurs.
+
+En fin de morceau, une carte affiche pièces gagnées, meilleur combo, parfaits et un éventuel nouveau record, avec « Titre suivant » sélectionné par défaut et « Rejouer ce titre ».

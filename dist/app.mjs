@@ -37,7 +37,8 @@ try{
     if(Number.isFinite(raw.sfxVolume))settings.sfxVolume=Math.max(0,Math.min(100,raw.sfxVolume));
   }
 }catch{storageAvailable=false;}
-let sessionHits=0;
+let sessionHits=0,song={coins:0,perfects:0,hits:0,best:0,combo:0};
+function resetSong(){sessionHits=0;song={coins:state.totalCoins,perfects:state.perfects,hits:state.hits,best:state.bestCombo,combo:0};}
 const trophyQueue=[];let trophyTimer;
 const welcome=offlineReward(state);
 try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch{storageAvailable=false;}
@@ -105,7 +106,8 @@ async function play(){
   try{
     await audio.init();
     await ensureTrack();
-    if(fromMenu){await audio.seek(0,false);sessionHits=0;resolved.clear();lastActionSongTime=-1;flow.reset();}
+    if(fromMenu){await audio.seek(0,false);resetSong();resolved.clear();lastActionSongTime=-1;flow.reset();}
+    if(audio.position===0)resetSong();
     await audio.play({countIn:audio.position===0 && library.current?4:0});
     $('#dojo-reveal').hidden=true;
     sessionMenuOpen=false;
@@ -128,7 +130,7 @@ async function previewTrack(){
   if(transportBusy||trackLoading||importing||!libraryLoaded)return;transportBusy=true;updateUI();
   try{if(audio.playing)audio.pause();else{await audio.init();await ensureTrack();await audio.play();}}catch(error){toast(error.message);}finally{transportBusy=false;syncTransport();}
 }
-$('#restart-session').addEventListener('click',async()=>{audio.pause();sessionHits=0;flow.reset();resolved.clear();lastActionSongTime=-1;await audio.seek(0,false);await play();});
+$('#restart-session').addEventListener('click',async()=>{audio.pause();resetSong();flow.reset();resolved.clear();lastActionSongTime=-1;await audio.seek(0,false);await play();});
 $('#start-button').addEventListener('click',play);
 $('#mobile-start-button').addEventListener('click',play);
 function setTrackUI(){
@@ -150,8 +152,21 @@ function handleTransport(event){
     $('#dojo-continue').focus({preventScroll:true});
     return;
   }
-  void advanceTrack(1,true);
+  showSongEnd();
 }
+// End-of-song card: the moment players usually leave, so make "one more" the easiest action.
+function showSongEnd(){
+  const hits=state.hits-song.hits,record=song.combo>song.best;
+  $('#end-title').textContent=$('#track-title').textContent;
+  $('#end-coins').textContent='+'+coinGain.format(state.totalCoins-song.coins);
+  $('#end-combo').textContent=song.combo+'×';
+  $('#end-perfects').textContent=hits?(state.perfects-song.perfects)+' / '+hits:'—';
+  $('#end-record').hidden=!record;
+  $('#song-end').showModal();
+  if(record){scene.celebrate('flow');audio.cue('milestone');}
+}
+$('#end-next').addEventListener('click',()=>{$('#song-end').close();void advanceTrack(1,true);});
+$('#end-replay').addEventListener('click',()=>{$('#song-end').close();$('#restart-session').click();});
 $('#dojo-continue').addEventListener('click',()=>{
   $('#dojo-reveal').hidden=true;
   void advanceTrack(1,true);
@@ -251,7 +266,7 @@ function dealDamage(amount){
   if(state.bosses>before){showMoment('ÉPREUVE ACCOMPLIE','LE SAC CÈDE.','Ton école ouvre une nouvelle voie.','boss');audio.cue('boss');}
   else if(state.stage%5===0)showMoment('ÉPREUVE · SÉRIE '+state.stage,'SAC RENFORCÉ','Une résistance supérieure. Une récompense ×4.','boss');
   const unlocked=Object.values(FORMS).filter(form=>form.stage>previousStage && form.stage<=state.highestStage);
-  if(unlocked.length)toast('Technique apprise · '+unlocked.map(form=>form.label).join(' et '));
+  if(unlocked.length){showMoment('NOUVELLE TECHNIQUE',unlocked.map(form=>form.label).join(' + ').toUpperCase(),'Nova l’ajoute à ses enchaînements.','flow');scene.celebrate('flow');audio.cue('milestone');}
   $('#accessible-feedback').textContent='Sac brisé ! Série '+state.stage+'. '+format(state.coins)+' pièces.';
   award();save();return count;
 }
@@ -293,7 +308,7 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
   const weight=interval/(60/112),boost=flow.active&&audio.playing;
   if(judgment.grade!=='miss'){
     if(!automated)sessionHits++;
-    combo++;if(!automated)state.bestCombo=Math.max(combo,state.bestCombo);if(judgment.grade==='perfect')state.perfects++;
+    combo++;if(!automated){state.bestCombo=Math.max(combo,state.bestCombo);song.combo=Math.max(song.combo,combo);}if(judgment.grade==='perfect')state.perfects++;
     const hit=hitDamage(state,judgment.grade,combo),damage=Math.max(1,Math.round(hit.damage*weight*(boost?2.5:1)));
     const coinsEarned=0.01;addCoins(state,coinsEarned);
     const count=dealDamage(damage);flow.hit(judgment.grade,interval);
@@ -387,7 +402,7 @@ async function ensureTrack(){
       catch(error){track.analysisAttempted=true;toast(error.message);}
     }
     if(serial!==selectionSerial)return;
-    sessionHits=0;audio.select(track?.builtin?id:track?'custom':'silent',buffer);audio.setTempo(track?.bpm||120,track?.offset||0);loadedId=id;flow.reset();resolved.clear();lastActionSongTime=-1;resetCombo();setTrackUI();
+    resetSong();audio.select(track?.builtin?id:track?'custom':'silent',buffer);audio.setTempo(track?.bpm||120,track?.offset||0);loadedId=id;flow.reset();resolved.clear();lastActionSongTime=-1;resetCombo();setTrackUI();
   }finally{if(serial===selectionSerial){trackLoading=false;updateUI();}}
 }
 async function chooseTrack(id,resume=false){
@@ -420,7 +435,7 @@ $('#playlist-list').addEventListener('drop',async event=>{if(!draggingTrack)retu
 $('#playlist-list').addEventListener('dragend',()=>{draggingTrack=null;$$('.playlist-row.dragging').forEach(row=>row.classList.remove('dragging'));});
 $('#playlist-repeat').addEventListener('change',async event=>{library.repeat=event.target.checked;await library.persist();updateUI();});
 $$('[data-original]').forEach(button=>button.addEventListener('click',async()=>{await library.addOriginal(button.dataset.original);renderPlaylist();updateUI();}));
-$$('[data-rhythm-mode]').forEach(button=>button.addEventListener('click',()=>{settings.rhythmMode=button.dataset.rhythmMode;sessionHits=0;flow.reset();resetCombo();save();updateUI();}));
+$$('[data-rhythm-mode]').forEach(button=>button.addEventListener('click',()=>{settings.rhythmMode=button.dataset.rhythmMode;resetSong();flow.reset();resetCombo();save();updateUI();}));
 async function changeTempo(bpm,offset=audio.offset){
   if(!Number.isFinite(bpm)||bpm<40||bpm>240||!Number.isFinite(offset)||offset<0||offset>(library.current?.duration||120)){toast('Choisis 40 à 240 BPM et un premier temps dans le morceau.');setTrackUI();return;}
   audio.setTempo(Math.round(bpm*10)/10,offset);if(library.current){const track=library.current;track.bpm=audio.bpm;track.offset=offset;track.chart={...songSettings(track),source:'grid',bpm:track.bpm,offset};await library.persist(track.builtin?{}:{record:track});}resolved.clear();lastActionSongTime=-1;resetCombo();renderPlaylist();
@@ -463,7 +478,7 @@ async function applySongConfig(config){
   const track=library.current;track.chart=config;track.bpm=config.bpm;track.offset=config.offset;
   const stored=await library.persist(track.builtin?{}:{record:track});resolved.clear();lastActionSongTime=-1;resetCombo();renderPlaylist();toast(stored?'Calage enregistré avec ce morceau.':'Calage appliqué pour cette session. Stockage indisponible.');
 }
-function closeSync(){audio.metronome=settings.metronome;sessionHits=0;resolved.clear();lastActionSongTime=-1;resetCombo();setTrackUI();}
+function closeSync(){audio.metronome=settings.metronome;resetSong();resolved.clear();lastActionSongTime=-1;resetCombo();setTrackUI();}
 const editor=new SongEditor({audio,onApply:applySongConfig,onClose:closeSync,onAnalyze:async progress=>{
   const track=library.current;track.analysis=await analyzeSong(audio.buffer,progress);track.analysisAttempted=false;await library.persist({record:track});return track.analysis;
 }});
@@ -518,7 +533,7 @@ $('#import-save').addEventListener('change', async event => {
     const data = JSON.parse(await file.text());
     if (data.game !== 'pulsebound' || data.state?.version !== 1) throw new Error('Sauvegarde Pulsebound non reconnue.');
     audio.pause();flow.reset();resolved.clear();lastActionSongTime=-1;
-    state = restoreState(data.state);sessionHits=0;
+    state = restoreState(data.state);resetSong();
     const importedReward=offlineReward(state);showWelcome(importedReward);
     resetCombo();
     updateUI();

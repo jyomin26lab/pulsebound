@@ -12,9 +12,9 @@ export const STYLE_MOVES = {
 };
 
 export const FORMS = {
-  leapPunch: {label:'Direct sauté', stage:3},
-  axeKick: {label:'Coup de pied marteau', stage:6},
-  cartwheel: {label:'Roue de capoeira', stage:10}
+  leapPunch: {label:'Direct sauté', stage:12},
+  axeKick: {label:'Coup de pied marteau', stage:22},
+  cartwheel: {label:'Roue de capoeira', stage:28}
 };
 
 export function learnedMove(technique,combo,stage,index){
