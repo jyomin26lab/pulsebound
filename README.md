@@ -2,7 +2,7 @@
 
 [Jouer à Pulsebound](https://pulsebound-rhythm-dojo.noualexandre26.chatgpt.site) · [Dépôt GitHub](https://github.com/jyomin26lab/pulsebound)
 
-Jeu incrémental musical en JavaScript/Web Audio, sans dépendances. Nova frappe un sac dans un dojo nocturne orange en illustration géométrique. Les recrues, techniques et transmissions restent à droite sur ordinateur, sous la session sur mobile.
+Jeu incrémental musical en JavaScript/Web Audio, sans dépendances. Nova frappe un sac dans un dojo nocturne orange en illustration géométrique. Le dojo, les techniques et les transmissions restent à droite sur ordinateur, sous la session sur mobile.
 
 ## Jouer
 
@@ -25,17 +25,17 @@ L’analyse est heuristique : elle ne sépare pas les instruments et ne transcri
 
 ## Progression et ressenti
 
-Frappes et sacs brisés rapportent des pièces. Disciples, adeptes et maîtres produisent automatiquement. Paliers à 10/25/50/100 recrues, sacs renforcés tous les cinq niveaux, succès et transmission après la série 20 et 12 000 pièces gagnés dans l’école. Le Flow dure 32 temps et se fige en pause. Voir GAMEPLAY.md.
+Nova commence dans la Rue et monte 17 dojos, jusqu’à une planète alien : il équipe chaque salle objet par objet, puis l’agrandit. Frappes et sacs brisés rapportent des pièces ; chaque sac brisé amène un fan ; élèves et fans paient une recette à la fin de chaque morceau, multipliée par la note. Transmission possible du niveau 2 au niveau 7, saut de dimension au niveau 17. Voir UX-PROGRESSION.md. Le Flow dure 32 temps et se fige en pause. Voir GAMEPLAY.md.
 
 Les impacts PCM superposent attaque, grain et grave : trois variantes normales, trois critiques, légère variation de hauteur et limite de voix simultanées. Musique et impacts ont leurs volumes indépendants. Le décor est légèrement flouté dans un cache redessiné au chargement/redimensionnement ; personnage, sac et UI restent nets. La réduction des mouvements est respectée.
 
-Les disciples rapportent des pièces pendant huit heures d’absence au maximum. La récompense est créditée et sauvegardée avant la fenêtre stylisée de retour, pour éviter de la toucher deux fois en rechargeant. La progression est dans localStorage et s’exporte depuis les réglages ; cet export n’inclut pas les fichiers audio.
+Il n’y a pas de gain pendant l’absence : on gagne en jouant. La progression est dans localStorage et s’exporte depuis les réglages ; cet export n’inclut pas les fichiers audio.
 
 ## Vérifications
 
 Lancer chacun des douze scripts Node : check.mjs, check-rhythm.mjs, check-audio-clock.mjs, check-audio-transport.mjs, check-beat-analysis.mjs, check-progression.mjs, check-playlist.mjs, check-song-chart.mjs, check-mobile-audio.mjs, check-combat-controls.mjs, check-friendly.mjs, check-income.mjs. Ils couvrent aussi les revenus directs, le calage sans intro vide et l’intégrité des neuf PNG séparés. simulate-progression.mjs reproduit la simulation économique détaillée dans UX-PROGRESSION.md.
 
-Ils couvrent économie, migration, absence, Flow, DSP, pause/reprise/seek/fin, attaques irrégulières, silence, suivi des beats et changements de tempo, cartes manuelles, stockage de playlist/calage, annulation et enveloppes SFX. Les essais navigateur couvrent import multiple, cache après rechargement, titre suivant automatique, éditeur, lecture, inputs et affichage 320/390 px sans débordement. Ils ne mesurent pas la latence physique ni la transcription sur tous les morceaux.
+Ils couvrent économie des dojos, migration, recette de séance, Flow, DSP, pause/reprise/seek/fin, attaques irrégulières, silence, suivi des beats et changements de tempo, cartes manuelles, stockage de playlist/calage, annulation et enveloppes SFX. Les essais navigateur couvrent import multiple, cache après rechargement, titre suivant automatique, éditeur, lecture, inputs et affichage 320/390 px sans débordement. Ils ne mesurent pas la latence physique ni la transcription sur tous les morceaux.
 
 Servir dist/ pour le déploiement statique. AUDIO-ARCHITECTURE.md décrit les modules, RHYTHM.md la méthode, UI-ART.md les icônes et ART-DIRECTION.md les illustrations. Les polices distantes sont facultatives.
 
@@ -49,4 +49,4 @@ Auto suit la carte des notes pendant la lecture, dans les deux modes. Il se fige
 
 Les frappes alternent jab, direct, pied et uppercut selon une séquence de huit notes ; les icônes anticipent ces coups. Pied et Uppercut préparent une seule prochaine frappe. Danse règle les pas entre les attaques, avec une phase calculée depuis les beats locaux, y compris aux changements de tempo. Les actions interrompent la danse. Les neuf poses sont désormais des PNG individuels dans dist/sprites/, alignés par un manifeste et dessinés entiers. Les poses de danse sourient légèrement. Voir SPRITES-INDIVIDUELS.md. Les anciennes planches restent des références historiques et ne sont plus chargées par le rendu. La réduction des mouvements désactive la danse et les déplacements décoratifs.
 
-Le score a été retiré. Les pièces et le revenu par seconde sont au premier plan. Le bandeau supérieur reste visible pendant le défilement, y compris devant la boutique sur mobile. Les formations versent directement 0,1/1/8 pièce(s) par seconde de base par disciple/adepte/maître, sans attendre un sac brisé. Les paliers, sceaux et Flow augmentent ces revenus. Les chiffres flottants montrent les pièces reçues. Les trophées ont une notification non bloquante ; les particules et lumières ambiantes restent derrière l’action. UX-PROGRESSION.md détaille coûts, progression simulée et pistes à valider avec des joueurs.
+Le score a été retiré. Les pièces et la recette par séance sont au premier plan. Le bandeau supérieur reste visible pendant le défilement, y compris devant la boutique sur mobile. Les chiffres flottants montrent les pièces reçues. Les trophées ont une notification non bloquante ; les particules et lumières ambiantes restent derrière l’action. UX-PROGRESSION.md détaille coûts, progression simulée et pistes à valider avec des joueurs.

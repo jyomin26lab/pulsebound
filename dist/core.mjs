@@ -1,27 +1,74 @@
 export const SAVE_KEY = 'pulsebound-save-v1';
 export const UPGRADE_INFO = {
   power: { base: 3, growth: 1.28, max: 100 },
-  echo: { base: 5, growth: 1.15, max: 100 },
-  adept: { base: 65, growth: 1.18, max: 100 },
-  master: { base: 550, growth: 1.19, max: 100 },
   focus: { base: 12, growth: 1.75, max: 8 },
   fury: { base: 24, growth: 1.5, max: 20 }
 };
-export const PRODUCERS = {
-  echo: { name:'Disciples', singular:'Disciple', dps:3, income:.1, unlock:1, symbol:'一', description:'La relève du dojo. Chaque disciple rapporte 0,1 pièce par seconde.' },
-  adept: { name:'Adeptes', singular:'Adepte', dps:18, income:1, unlock:5, symbol:'二', description:'Chaque adepte rapporte 1 pièce par seconde.' },
-  master: { name:'Maîtres', singular:'Maître', dps:130, income:8, unlock:10, symbol:'三', description:'Chaque maître rapporte 8 pièces par seconde.' }
-};
-export const MILESTONES=[10,25,50,100];
+/*
+ * Dojo ladder, from the street to an alien planet. Each venue has equipment to buy; once everything is bought the
+ * master can move to the next venue. Money comes from hits, broken bags and the end-of-session takings.
+ * Tuning: venue prices grow by PRICE_GROWTH per level on Earth and ALIEN_PRICE_GROWTH on the alien planet,
+ * takings by TAKINGS_GROWTH; DIFFICULTY scales every price. Check the result with simulate-progression.mjs.
+ */
+export const DIFFICULTY=1,PRICE_GROWTH=6.8,ALIEN_PRICE_GROWTH=3.9,TAKINGS_GROWTH=3.4;
+const EARTH=[
+  ['La Rue',[['bag','Sac d’occasion',0,.15],['speaker','Enceinte portable',0,.2]]],
+  ['Salle délabrée',[['mats','Tapis de sol',2,.05],['poster','Posters de champions',0,.1],['windows','Fenêtres réparées',1,.1],['fan','Ventilateur',1,.1],['lockers','Vestiaires',2,.05]]],
+  ['Dojo gymnase',[['tatami','Tatamis neufs',3,.05],['mirrors','Miroirs muraux',1,.1],['rack','Râtelier d’armes',2,.05],['lights','Éclairage neuf',1,.1],['showers','Douches',3,.1]]],
+  ['Dojo de quartier',[['sign','Enseigne lumineuse',2,.1],['ring','Ring d’entraînement',4,.05],['sauna','Sauna',2,.15],['trophies','Vitrine à trophées',1,.15],['assistant','Coach assistant',5,.05]]],
+  ['Dojo renommé',[['garden','Jardin zen',2,.15],['dummies','Mannequins de bois',4,.05],['press','Salle de presse',3,.1],['physio','Kinésithérapeute',4,.1],['tournament','Tournoi annuel',6,.1]]],
+  ['Dojo de luxe',[['marble','Sol en marbre',3,.1],['spa','Spa privé',3,.15],['chef','Chef cuisinier',4,.1],['limousine','Navette en limousine',5,.1],['champion','Champion invité',7,.1]]],
+  ['Dojo militaire',[['obstacle','Parcours d’obstacles',5,.05],['armory','Armurerie',4,.1],['bunker','Bunker d’entraînement',6,.1],['helipad','Héliport',5,.1],['general','Général instructeur',8,.1]]],
+  ['Dojo high-tech',[['holo','Sparring holographique',6,.1],['sensors','Capteurs de frappe',5,.1],['robots','Robots partenaires',7,.1],['ai','Coach IA',8,.1],['vr','Salle de réalité virtuelle',9,.1]]],
+  ['Dojo spatial',[['gravity','Gravité artificielle',7,.1],['airlock','Sas d’accueil',6,.1],['window','Baie panoramique sur la Terre',6,.15],['shuttle','Navette de recrutement',9,.1],['station','Station d’entraînement orbitale',10,.1]]]
+];
+// Levels 10-17 retrace levels 1-8 on an alien planet.
+const LADDER=[...EARTH,...EARTH.slice(0,8).map(([name,items])=>[name==='La Rue'?'Rue alien':name+' alien',items.map(([id,label,count,ease])=>['alien-'+id,label+' alien',count+8,ease])])];
+const SHARES=[.2,.35,.5,.7,1];// equipment cost as a share of the venue price
+export const VENUES=LADDER.map(([name,items],index)=>{
+  const level=index+1,price=level===1?0:Math.round(25*PRICE_GROWTH**(Math.min(level,10)-2)*ALIEN_PRICE_GROWTH**Math.max(0,level-10)*DIFFICULTY);
+  return {level,name,price,fee:.5*TAKINGS_GROWTH**(level-1),tip:.02*TAKINGS_GROWTH**(level-1),art:'venues/'+String(level).padStart(2,'0')+'.webp',
+    items:items.map(([id,label,count,ease],i)=>({id,name:label,students:count,comfort:ease,art:'items/'+id+'.webp',cost:level===1?[3,6][i]*DIFFICULTY:Math.round(price*SHARES[i])}))};
+});
+export const MAX_VENUE=VENUES.length;
+export function venueOf(s){return VENUES[Math.min(MAX_VENUE,Math.max(1,s.venue||1))-1];}
+export function students(s){return venueOf(s).items.filter(item=>s.items.includes(item.id)).reduce((n,item)=>n+item.students,0);}
+export function comfort(s){return 1+venueOf(s).items.filter(item=>s.items.includes(item.id)).reduce((n,item)=>n+item.comfort,0);}
+export function fullyEquipped(s){return venueOf(s).items.every(item=>s.items.includes(item.id));}
+export function buyItem(s,id){
+  const item=venueOf(s).items.find(entry=>entry.id===id);
+  if(!item||s.items.includes(id)||s.coins<item.cost)return false;
+  s.coins-=item.cost;s.items.push(id);return true;
+}
+export function expandCost(s){return s.venue<MAX_VENUE?VENUES[s.venue].price:Infinity;}
+export function canExpand(s){return fullyEquipped(s)&&s.coins>=expandCost(s);}
+export function expand(s){if(!canExpand(s))return false;s.coins-=expandCost(s);s.venue++;s.items=[];return true;}
+export const GRADE_TAKINGS={S:2,A:1.5,B:1.2,C:1};
+// End-of-session takings: fans tip, students pay their fee; the grade of the song multiplies it.
+export function sessionPayout(s,grade=null){
+  const v=venueOf(s),base=(s.fans||0)*v.tip+students(s)*v.fee;
+  return Math.round(base*comfort(s)*(GRADE_TAKINGS[grade]||1)*legacyMultiplier(s)*(1+.2*boon(s,'income'))*2**(s.dimension||0)*100)/100;
+}
+export function canJump(s){return s.venue===MAX_VENUE&&fullyEquipped(s);}
+// Dimension jump: alien technology opens a new dojo in another dimension. Back to the street, takings ×2 each time.
+export function dimensionJump(s,now=Date.now()){
+  if(!canJump(s))return false;
+  s.dimension=(s.dimension||0)+1;startOver(s,now);return true;
+}
+function startOver(s,now){
+  s.coins=0;s.runCoins=0;s.stage=1;s.hp=enemyHealth(1);s.savedAt=now;s.venue=1;s.items=[];s.fans=perk(s,'headstart')*50;
+  for(const key of Object.keys(UPGRADE_INFO))s.upgrades[key]=0;
+  s.boons={};s.pendingBoons=0;s.upgrades.power=1;
+}
 export const ACHIEVEMENTS=[
   {id:'first',name:'Premier impact',text:'Briser ton premier sac',reward:0.15,test:s=>s.kills>=1},
-  {id:'school',name:'La relève',text:'Recruter un disciple',reward:0.35,test:s=>s.upgrades.echo>=1},
+  {id:'room',name:'Un toit',text:'Acheter ta première salle',reward:2,test:s=>s.venue>=2},
   {id:'combo',name:'Dans le flow',text:'Enchaîner 20 actions réussies',reward:0.8,test:s=>s.bestCombo>=20},
   {id:'boss',name:'Briser le silence',text:'Briser un sac renforcé',reward:1.0,test:s=>s.bosses>=1},
   {id:'flow',name:'Incandescence',text:'Déclencher le Flow',reward:1.2,test:s=>s.flows>=1},
-  {id:'ten',name:'Une véritable école',text:'Recruter 10 disciples',reward:2.5,test:s=>s.upgrades.echo>=10},
+  {id:'gym',name:'Un vrai dojo',text:'Ouvrir le dojo gymnase',reward:10,test:s=>s.venue>=3},
   {id:'hundred',name:'La précision du geste',text:'Réussir 100 frappes parfaites',reward:1.5,test:s=>s.perfects>=100},
-  {id:'master',name:'La transmission',text:'Recruter un maître',reward:5.0,test:s=>s.upgrades.master>=1},
+  {id:'fans100',name:'Premiers admirateurs',text:'Réunir 100 fans',reward:3,test:s=>s.fans>=100},
   {id:'legacy',name:'Un nouveau départ',text:'Transmettre ton dojo',reward:1.0,test:s=>s.prestiges>=1},
   // Long-term goals tied to grades, the daily challenge and boons. Hidden ones show as ??? until earned.
   {id:'kills100',name:'Cent sacs',text:'Briser 100 sacs',reward:2,test:s=>s.kills>=100},
@@ -42,8 +89,12 @@ export const ACHIEVEMENTS=[
   {id:'daily7',name:'Une semaine au dojo',text:'Réussir le défi 7 jours d’affilée',reward:15,hidden:true,test:s=>(s.daily?.streak||0)>=7},
   {id:'boons5',name:'Dojo béni',text:'Cumuler 5 dons durables dans une même école',reward:4,test:s=>Object.values(s.boons||{}).reduce((n,v)=>n+v,0)>=5},
   {id:'fervor3',name:'Triple ferveur',text:'Choisir 3 fois Ferveur dans une même école',reward:6,hidden:true,test:s=>(s.boons?.income||0)>=3},
-  {id:'disciples25',name:'Une cour pleine',text:'Recruter 25 disciples',reward:5,test:s=>s.upgrades.echo>=25},
-  {id:'masters10',name:'Conseil des maîtres',text:'Recruter 10 maîtres',reward:20,test:s=>s.upgrades.master>=10},
+  {id:'renown',name:'Réputation',text:'Ouvrir le dojo renommé',reward:200,test:s=>s.venue>=5},
+  {id:'military',name:'Garde à vous',text:'Ouvrir le dojo militaire',reward:5000,test:s=>s.venue>=7},
+  {id:'space',name:'En orbite',text:'Ouvrir le dojo spatial',reward:1e5,test:s=>s.venue>=9},
+  {id:'alien',name:'Premier contact',text:'Arriver sur la planète alien',reward:5e5,hidden:true,test:s=>s.venue>=10},
+  {id:'fans1000',name:'Un fan-club',text:'Réunir 1 000 fans',reward:20,test:s=>s.fans>=1000},
+  {id:'dimension',name:'Au-delà',text:'Faire un saut de dimension',reward:10,hidden:true,test:s=>(s.dimension||0)>=1},
   {id:'legacy3',name:'Lignée',text:'Transmettre 3 fois ton dojo',reward:8,test:s=>s.prestiges>=3},
   {id:'seals10',name:'Dix sceaux',text:'Réunir 10 sceaux',reward:20,hidden:true,test:s=>s.seals>=10}
 ];
@@ -62,13 +113,12 @@ export function recordGrade(s,trackId,grade){
 }
 // Boons: pick one of three after each reinforced bag. Stacking bonuses last until the next transmission.
 export const BOONS={
-  income:{label:'Ferveur',text:'+20 % de revenu de l’école'},
+  income:{label:'Ferveur',text:'+20 % de recette de séance'},
   power:{label:'Poings de braise',text:'+15 % de dégâts par frappe'},
   crit:{label:'Œil du tigre',text:'+4 % de chances de critique'},
-  auto:{label:'Discipline',text:'+25 % de dégâts de l’école'},
   bag:{label:'Butin',text:'+25 % de pièces par sac brisé'},
-  recruit:{label:'Deux recrues',text:'+2 disciples gratuits',instant:true},
-  coins:{label:'Offrande',text:'2 minutes de revenu tout de suite (3 pièces min.)',instant:true}
+  word:{label:'Bouche-à-oreille',text:'+25 % de fans par sac brisé'},
+  coins:{label:'Offrande',text:'La moitié d’une recette de séance tout de suite (3 pièces min.)',instant:true}
 };
 export function boon(s,id){return s.boons?.[id]||0;}
 export function boonChoices(random=Math.random,count=3){
@@ -78,7 +128,7 @@ export function boonChoices(random=Math.random,count=3){
 }
 // Seal shop: permanent perks that survive every transmission. Spending seals keeps their +20 % power.
 export const PERKS={
-  headstart:{label:'Relève assurée',text:'+5 disciples au début de chaque nouvelle école',max:3,cost:level=>level+1},
+  headstart:{label:'Relève assurée',text:'+50 fans au début de chaque nouvelle école',max:3,cost:level=>level+1},
   blessing:{label:'Bénédiction',text:'Un don durable au hasard au début de chaque nouvelle école',max:3,cost:level=>2+level*2},
   fourth:{label:'Quatrième voie',text:'4 dons proposés au lieu de 3',max:1,cost:()=>3},
   reroll:{label:'Seconde chance',text:'Relancer une fois chaque tirage de dons',max:1,cost:()=>2},
@@ -93,8 +143,7 @@ export function buyPerk(s,id){
 }
 export function applyBoon(s,id){
   if(!Object.hasOwn(BOONS,id))return false;
-  if(id==='recruit')s.upgrades.echo=Math.min(UPGRADE_INFO.echo.max,s.upgrades.echo+2);
-  else if(id==='coins')addCoins(s,Math.max(3,autoIncome(s)*120));
+  if(id==='coins')addCoins(s,Math.max(3,sessionPayout(s)*.5));
   else s.boons[id]=boon(s,id)+1;
   return true;
 }
@@ -118,15 +167,15 @@ export function dailyStreak(s,day){return s.daily.lastDone===day||s.daily.lastDo
 export function completeChallenge(s,day){
   if(s.daily.lastDone===day)return 0;
   s.daily.streak=s.daily.lastDone===previousDay(day)?s.daily.streak+1:1;s.daily.lastDone=day;
-  // Five minutes of school income (5 coins minimum), +10 % per streak day up to +70 %.
-  const reward=Math.round(Math.max(5,autoIncome(s)*300)*(1+Math.min(s.daily.streak-1,7)*.1)*(perk(s,'devotion')?2:1)*100)/100;
+  // One session's takings (5 coins minimum), +10 % per streak day up to +70 %.
+  const reward=Math.round(Math.max(5,sessionPayout(s))*(1+Math.min(s.daily.streak-1,7)*.1)*(perk(s,'devotion')?2:1)*100)/100;
   addCoins(s,reward);return reward;
 }
 export function freshState(now = Date.now()) {
   return { version: 1, dojoLit: false, coins: 0, stage: 1, hp: enemyHealth(1), kills: 0,
     hits: 0, perfects: 0, dodges: 0, dodgesMissed: 0, bestCombo: 0, totalCoins: 0, totalDamage: 0,
     runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[], grades:{}, daily:{lastDone:'',streak:0}, boons:{}, pendingBoons:0, perks:{}, sealsSpent:0,
-    upgrades: { power: 0, echo: 0, adept:0, master:0, focus: 0, fury: 0 }, savedAt: now };
+    venue:1, items:[], fans:0, dimension:0, upgrades: { power: 0, focus: 0, fury: 0 }, savedAt: now };
 }
 export function rival(stage){
   // Every reinforced bag (each 5th) grants a boon pick, so the next one is always shown as a near goal.
@@ -139,23 +188,12 @@ export function enemyReward(stage) { return (5 + Math.min(stage-1,95)) * (stage%
 export function finisherReady(s){return s.hp<=enemyHealth(s.stage)*.3;}
 export function legacyMultiplier(s){return 1+(s.seals||0)*.2;}
 export function attackPower(s) { return (8 + s.upgrades.power * 4)*legacyMultiplier(s)*(1+.15*boon(s,'power')); }
-export function producerMultiplier(level){return 2**MILESTONES.filter(n=>level>=n).length;}
-export function producerPower(s,key){const p=PRODUCERS[key];return p?s.upgrades[key]*p.dps*producerMultiplier(s.upgrades[key])*(1+s.upgrades.power*.08)*legacyMultiplier(s)*(1+.25*boon(s,'auto')):0;}
-export function autoPower(s) { return Object.keys(PRODUCERS).reduce((sum,key)=>sum+producerPower(s,key),0); }
-export function producerIncome(s,key){const p=PRODUCERS[key];return p?s.upgrades[key]*p.income*producerMultiplier(s.upgrades[key])*legacyMultiplier(s)*(1+.2*boon(s,'income')):0;}
-export function autoIncome(s){return Object.keys(PRODUCERS).reduce((sum,key)=>sum+producerIncome(s,key),0);}
-export function earnPassive(s,seconds,boost=false){
-  if(!Number.isFinite(seconds)||seconds<=0)return 0;
-  const amount=autoIncome(s)*seconds*(boost?3:1);addCoins(s,amount);return amount;
-}
-export function producerUnlocked(s,key){return !!PRODUCERS[key]&&s.highestStage>=PRODUCERS[key].unlock;}
 export function upgradeCost(s, key) {
   const spec = UPGRADE_INFO[key];if(!spec)return Infinity;
   return s.upgrades[key] >= spec.max ? Infinity : Math.ceil(100 * spec.base * Math.pow(spec.growth, s.upgrades[key])) / 100;
 }
 export function buyUpgrade(s, key) {
   if (!Object.hasOwn(UPGRADE_INFO, key)) return false;
-  if(PRODUCERS[key]&&!producerUnlocked(s,key))return false;
   const cost = upgradeCost(s, key);
   if (s.coins < cost || !Number.isFinite(cost)) return false;
   s.coins -= cost;
@@ -163,7 +201,8 @@ export function buyUpgrade(s, key) {
   return true;
 }
 export function addCoins(s, amount) { if(!Number.isFinite(amount)||amount<=0)return;s.coins=Math.min(1e30,s.coins+amount);s.totalCoins=Math.min(1e30,s.totalCoins+amount);s.runCoins=Math.min(1e30,(s.runCoins||0)+amount); }
-export function damageEnemy(s, amount) {
+// Each broken bag also brings fans (×fanBoost during the Flow, +25 % per Bouche-à-oreille boon).
+export function damageEnemy(s, amount, fanBoost = 1) {
   if (!Number.isFinite(amount) || amount <= 0) return 0;
   let defeats = 0;
   s.totalDamage = Math.min(1e30,s.totalDamage+amount);
@@ -171,6 +210,7 @@ export function damageEnemy(s, amount) {
     amount -= s.hp;
     addCoins(s, enemyReward(s.stage)*(1+.25*boon(s,'bag')));
     if(s.stage%5===0)s.bosses++;
+    s.fans=Math.min(1e15,(s.fans||0)+fanBoost*(1+.25*boon(s,'word')));
     s.kills++;
     s.stage=Math.min(500,s.stage+1);s.highestStage=Math.max(s.highestStage,s.stage);
     s.hp = enemyHealth(s.stage);
@@ -198,29 +238,22 @@ export function claimAchievements(s){
   for(const a of ACHIEVEMENTS)if(!s.achievements.includes(a.id)&&a.test(s)){s.achievements.push(a.id);addCoins(s,a.reward);earned.push(a);}
   return earned;
 }
-export function dojoTier(s){return Math.min(3,(s.highestStage>=6?1:0)+(s.upgrades.echo>=10?1:0)+(s.upgrades.master>0||s.prestiges>0?1:0));}
-export function prestigeGain(s){return s.stage>=21?Math.floor(Math.sqrt(s.runCoins/12000)):0;}
+export function dojoTier(s){return Math.min(3,Math.floor(((s.venue||1)-1)/2));}
+// Transmission only from the dilapidated room (2) to the military dojo (7); later, the way out is the dimension jump.
+export function canTransmit(s){return s.venue>=2&&s.venue<=7;}
+export function prestigeGain(s){return canTransmit(s)?Math.floor(Math.sqrt(s.runCoins/12000)):0;}
 export function prestige(s,now=Date.now(),random=Math.random){
   const gain=prestigeGain(s);if(gain<1)return 0;
-  s.seals+=gain;s.prestiges++;s.coins=0;s.runCoins=0;s.stage=1;s.hp=enemyHealth(1);s.savedAt=now;
-  for(const key of Object.keys(UPGRADE_INFO))s.upgrades[key]=0;
-  s.boons={};s.pendingBoons=0;s.upgrades.power=1;if(s.seals>=3)s.upgrades.echo=1;
-  s.upgrades.echo=Math.max(s.upgrades.echo,perk(s,'headstart')*5);
+  s.seals+=gain;s.prestiges++;startOver(s,now);
   const lasting=Object.keys(BOONS).filter(id=>!BOONS[id].instant);
   for(let i=0;i<perk(s,'blessing');i++)applyBoon(s,lasting[Math.floor(random()*lasting.length)]);
   return gain;
 }
 export function currentGoal(s){
-  if(!s.upgrades.echo)return {label:'Accueille ton premier disciple',detail:'Il s’entraîne avec toi · +0,1 pièce / s',current:s.coins,target:upgradeCost(s,'echo'),action:'dojo'};
-  if(!s.upgrades.power)return {label:'Ton premier coup de maître',detail:'Améliore tes poings',current:s.coins,target:upgradeCost(s,'power'),action:'dojo'};
-  if(s.highestStage<6)return {label:'Ouvre la cour du dojo',detail:'Brise le sac renforcé de la série 5',current:s.stage-1,target:5,action:'combat'};
-  if(!s.upgrades.adept)return {label:'La cour est ouverte',detail:'Recrute ton premier adepte',current:s.coins,target:upgradeCost(s,'adept'),action:'dojo'};
-  if(s.upgrades.echo<10)return {label:'Une école prend vie',detail:'10 disciples : leurs revenus ×2',current:s.upgrades.echo,target:10,action:'dojo'};
-  if(s.highestStage<11)return {label:'La prochaine épreuve t’attend',detail:'Brise le sac renforcé de la série 10',current:s.stage-1,target:10,action:'combat'};
-  if(!s.upgrades.master)return {label:'Transmets tes techniques',detail:'Recrute ton premier maître',current:s.coins,target:upgradeCost(s,'master'),action:'dojo'};
-  if(prestigeGain(s)>0)return {label:'Une nouvelle école peut naître',detail:`Transmission : +${prestigeGain(s)} sceau${prestigeGain(s)>1?'x':''} permanent${prestigeGain(s)>1?'s':''}`,current:1,target:1,action:'legacy'};
-  const next=Math.min(500,Math.ceil(s.stage/5)*5);
-  return {label:'Écris la légende de ton école',detail:`Prochaine épreuve : série ${next}`,current:s.stage-1,target:next,action:'combat'};
+  if(canJump(s))return {label:'Un portail s’ouvre',detail:'Saut de dimension : recettes ×2 pour toujours',current:1,target:1,action:'dojo'};
+  const next=venueOf(s).items.filter(item=>!s.items.includes(item.id)).sort((a,b)=>a.cost-b.cost)[0];
+  if(next)return {label:'Équipe : '+venueOf(s).name,detail:next.name,current:s.coins,target:next.cost,action:'dojo'};
+  return {label:'Agrandis ton dojo',detail:VENUES[s.venue].name,current:s.coins,target:expandCost(s),action:'dojo'};
 }
 export function beatAction(beat) { return beat >= 0 && beat % 8 === 7 ? 'dodge' : 'punch'; }
 export function actionOutcome(action, expected, grade, guard, riposte = false) {
@@ -243,6 +276,8 @@ export function restoreState(raw, now = Date.now()) {
   s.highestStage=Number.isInteger(raw.highestStage)?Math.max(s.stage,Math.min(500,raw.highestStage)):s.stage;
   for(const key of ['bosses','flows','seals','prestiges'])s[key]=Math.floor(Math.min(key==='seals'?1e6:1e12,s[key]));
   if(!Number.isFinite(raw.runCoins))s.runCoins=s.totalCoins;
+  // Saves from before the dojo ladder: their run total belongs to the old economy and must not unlock a transmission.
+  if(!Number.isInteger(raw.venue))s.runCoins=0;
   if(!Number.isFinite(raw.bosses))s.bosses=Math.floor((s.stage-1)/5);
   s.achievements=Array.isArray(raw.achievements)?ACHIEVEMENTS.filter(a=>raw.achievements.includes(a.id)).map(a=>a.id):[];
   // Grades come from imported save files too: keep only short ids and known letters.
@@ -251,6 +286,10 @@ export function restoreState(raw, now = Date.now()) {
   if(Number.isInteger(raw.pendingBoons))s.pendingBoons=Math.max(0,Math.min(50,raw.pendingBoons));
   if(raw.boons&&typeof raw.boons==='object')for(const id of Object.keys(BOONS))if(Number.isInteger(raw.boons[id])&&raw.boons[id]>0)s.boons[id]=Math.min(1000,raw.boons[id]);
   if(raw.perks&&typeof raw.perks==='object')for(const id of Object.keys(PERKS))if(Number.isInteger(raw.perks[id])&&raw.perks[id]>0)s.perks[id]=Math.min(PERKS[id].max,raw.perks[id]);
+  s.venue=Number.isInteger(raw.venue)?Math.max(1,Math.min(MAX_VENUE,raw.venue)):1;
+  if(Array.isArray(raw.items)){const ids=venueOf(s).items.map(item=>item.id);s.items=ids.filter(id=>raw.items.includes(id));}
+  if(Number.isFinite(raw.fans)&&raw.fans>=0)s.fans=Math.min(1e15,raw.fans);
+  if(Number.isInteger(raw.dimension)&&raw.dimension>=0)s.dimension=Math.min(1000,raw.dimension);
   s.sealsSpent=Number.isInteger(raw.sealsSpent)?Math.max(0,Math.min(s.seals,raw.sealsSpent)):0;
   s.hp = Number.isFinite(raw.hp) && raw.hp > 0 ? Math.min(raw.hp, enemyHealth(s.stage)) : enemyHealth(s.stage);
   for (const key of Object.keys(UPGRADE_INFO)) {
@@ -259,14 +298,6 @@ export function restoreState(raw, now = Date.now()) {
   }
   s.savedAt = Number.isFinite(raw.savedAt) ? Math.min(now, Math.max(0, raw.savedAt)) : now;
   return s;
-}
-export function offlineReward(s, now = Date.now()) {
-  const elapsed = Math.min(8 * 3600, Math.max(0, (now - s.savedAt) / 1000));
-  // Absence uses the same regular income, without simulating bags or temporary Flow bonuses.
-  const reward = Math.floor(autoIncome(s) * elapsed * 100) / 100;
-  if (reward) addCoins(s, reward);
-  s.savedAt = now;
-  return { reward, seconds: elapsed };
 }
 
 // Onset autocorrelation estimates a regular beat grid; syncopation can imply half/double tempo.

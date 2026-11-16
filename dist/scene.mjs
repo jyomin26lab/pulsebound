@@ -221,7 +221,7 @@ export class DojoScene {
     this.floats=this.floats.filter(f=>now-f.time<800);
     for(const f of this.floats){const p=(now-f.time)/800;if(p<0)continue;c.save();c.globalAlpha=Math.min(1,(1-p)*3);c.fillStyle=f.color;c.shadowColor='#1a0f1c';c.shadowBlur=7;c.textAlign='center';c.font=`700 ${f.large?30:23}px "Space Grotesk",sans-serif`;c.fillText(f.text,f.x,f.y-(this.motion?p*40:0));c.restore();}
   }
-  render(now,{upcomingMove='punch',arenaVisible=true,lit=false,playing=false,beatPhase=1,preparation=0,dance=false,musicalBeat=0,flow=false,tier=0,disciples=0,boss=false,combo=0}={}){
+  render(now,{upcomingMove='punch',arenaVisible=true,lit=false,playing=false,beatPhase=1,preparation=0,dance=false,musicalBeat=0,flow=false,tier=0,disciples=0,boss=false,combo=0,venueArt=''}={}){
     this.preparedMove=upcomingMove;
     const c=this.ctx,w=this.width,h=this.height;c.clearRect(0,0,w,h);c.save();
     if(this.motion&&this.intense){
@@ -232,8 +232,13 @@ export class DojoScene {
     }
     c.fillStyle='#29232b';c.fillRect(0,0,w,h);
     const reveal=this.motion?Math.min(1,Math.max(0,(now-(this.litAt??-2000))/1200)):1;
-    if(!lit || reveal<1 || !this.rooms[1].naturalWidth)this.drawRoom(this.rooms[0]);
-    if(lit){c.save();c.globalAlpha=reveal;this.drawRoom(this.rooms[1]);c.restore();}
+    // The current venue's picture replaces the default dojo as soon as the file exists (see VENUES-ART.md).
+    if(this.venueArtPath!==venueArt){this.venueArtPath=venueArt;this.venueImage=venueArt?Object.assign(new Image(),{src:new URL('./'+venueArt,import.meta.url).href}):null;}
+    if(this.venueImage?.naturalWidth)this.drawRoom(this.venueImage);
+    else{
+      if(!lit || reveal<1 || !this.rooms[1].naturalWidth)this.drawRoom(this.rooms[0]);
+      if(lit){c.save();c.globalAlpha=reveal;this.drawRoom(this.rooms[1]);c.restore();}
+    }
     c.fillStyle=boss?'#41172a25':'#130d170e';c.fillRect(0,0,w,h);
     if(arenaVisible && this.welcomeDisciple){this.arrivalAt=now;this.welcomeDisciple=false;}
     this.details(tier,now);this.trainees(now,disciples,playing?musicalBeat:.5);

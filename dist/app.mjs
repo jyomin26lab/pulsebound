@@ -1,6 +1,6 @@
 import { judgePlayable } from './input-timing.mjs';
 import { DeviceCalibration } from './device-calibration.mjs';
-import { SAVE_KEY, freshState, restoreState, offlineReward, enemyHealth, enemyReward, attackPower, autoPower, autoIncome, producerIncome, earnPassive, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, PRODUCERS, MILESTONES, ACHIEVEMENTS, producerUnlocked, producerMultiplier, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade, dailyChallenge, challengeMet, completeChallenge, dailyStreak, BOONS, boon, boonChoices, applyBoon, finisherReady, PERKS, perk, perkCost, buyPerk, sealsAvailable } from './core.mjs';
+import { SAVE_KEY, freshState, restoreState, enemyHealth, enemyReward, attackPower, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, ACHIEVEMENTS, VENUES, MAX_VENUE, venueOf, students, comfort, fullyEquipped, buyItem, expandCost, canExpand, expand, sessionPayout, canJump, dimensionJump, canTransmit, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade, dailyChallenge, challengeMet, completeChallenge, dailyStreak, BOONS, boon, boonChoices, applyBoon, finisherReady, PERKS, perk, perkCost, buyPerk, sealsAvailable } from './core.mjs';
 import { FlowMeter } from './flow.mjs';
 import { MusicLibrary } from './music-library.mjs';
 import { freestyleInterval, IMPACT_STYLES } from './audio-sfx.mjs';
@@ -40,13 +40,12 @@ try{
 let sessionHits=0,song={coins:0,perfects:0,hits:0,best:0,combo:0,missed:0,auto:false};
 function resetSong(){sessionHits=0;song={coins:state.totalCoins,perfects:state.perfects,hits:state.hits,best:state.bestCombo,combo:0,missed:0,auto:false};}
 const trophyQueue=[];let trophyTimer;
-const welcome=offlineReward(state);
 try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch{storageAvailable=false;}
 const library=new MusicLibrary();
-let sessionMenuOpen=true,libraryLoaded=false,trackLoading=false,importing=false,loadedId=null,selectionSerial=0,advanceBusy=false,removedTrack=null,pendingWelcome=null,lastFreeHit=NaN;
+let sessionMenuOpen=true,libraryLoaded=false,trackLoading=false,importing=false,loadedId=null,selectionSerial=0,advanceBusy=false,removedTrack=null,lastFreeHit=NaN;
 let combo=0,perfectRun=0,lastBreakAt=0,holding=null,lastInput=-Infinity,toastTimeout,momentTimeout,lastActionSongTime=-1;
 const flow=new FlowMeter();
-let transportBusy=false,importedTitle='',lastPaint=0,lastFrame=performance.now(),autoFlashAt=0;
+let transportBusy=false,importedTitle='',lastPaint=0,lastFrame=performance.now();
 let importController=null;
 let autoEnabled=false,armedTechnique=null,danceEnabled=true;
 const autoStriker=new AutoStriker();
@@ -145,7 +144,7 @@ function handleTransport(event){
   syncTransport();
   if(event?.reason!=='ended'||sessionMenuOpen||$$('dialog[open]').length)return;
   if(!state.dojoLit && library.current){
-    state.dojoLit=true;
+    state.dojoLit=true;addCoins(state,sessionPayout(state));
     scene.litAt=performance.now();
     save();
     $('#dojo-reveal').hidden=false;
@@ -160,6 +159,9 @@ function showSongEnd(){
   // Only a fully manual run in rhythm mode is graded; Freestyle and Auto have no misses to count.
   const grade=settings.rhythmMode==='tempo'&&!song.auto?songGrade({perfects,goods:hits-perfects,notes:hits+song.missed}):null;
   const best=recordGrade(state,library.current?.id,grade);if(best){save();renderPlaylist();}
+  // The dojo pays at the end of each session: students' fees and fans' tips, multiplied by the grade.
+  const takings=sessionPayout(state,grade);addCoins(state,takings);save();
+  $('#end-takings').textContent='RECETTE DE LA SÉANCE · +'+format(takings)+' PIÈCES'+(grade&&grade!=='C'?' · NOTE '+grade+' ×'+({S:2,A:1.5,B:1.2})[grade]:'');
   const day=today(),challenge=dailyChallenge(day,library.items.map(track=>track.id));
   const dailyReward=settings.rhythmMode==='tempo'&&!song.auto&&challenge?.trackId===library.current?.id&&challengeMet(challenge,{combo:song.combo,grade,perfects})?completeChallenge(state,day):0;
   if(dailyReward){save();renderDaily();}
@@ -194,6 +196,45 @@ function drawBoons(){
   }));
 }
 $('#boon-reroll').addEventListener('click',()=>{$('#boon-reroll').hidden=true;drawBoons();$('#boon-choices .boon-choice').focus();});
+// "Mon dojo": equipment of the current venue (rebuilt when the venue changes), then expand or jump dimension.
+let renderedVenue=0;
+function renderVenue(){
+  const v=venueOf(state);
+  if(renderedVenue!==state.venue){
+    renderedVenue=state.venue;
+    $('#venue-items').replaceChildren(...v.items.map(item=>{
+      const button=document.createElement('button');button.type='button';button.className='perk';button.dataset.item=item.id;
+      const name=document.createElement('strong');name.textContent=item.name;
+      const text=document.createElement('span');text.textContent=[item.students?'+'+item.students+' élève'+(item.students>1?'s':''):'',item.comfort?'confort +'+Math.round(item.comfort*100)+' %':''].filter(Boolean).join(' · ');
+      const price=document.createElement('em');button.append(name,text,price);return button;
+    }));
+  }
+  $('#venue-level').textContent=state.venue;$('#venue-name').textContent=v.name;
+  $('#venue-stats').textContent=students(state)+' élève'+(students(state)>1?'s':'')+' · '+format(Math.floor(state.fans))+' fans · confort ×'+coinGain.format(comfort(state))+' · ≈ '+format(sessionPayout(state))+' pièces par séance'+(state.dimension?' · dimension '+(state.dimension+1):'');
+  $$('#venue-items .perk').forEach(button=>{
+    const item=v.items.find(entry=>entry.id===button.dataset.item),owned=state.items.includes(item.id);
+    button.disabled=owned||state.coins<item.cost;button.classList.toggle('owned',owned);
+    button.querySelector('em').textContent=owned?'Installé':format(item.cost)+' pièces';
+  });
+  const next=VENUES[state.venue],expandButton=$('#venue-expand');
+  expandButton.disabled=!(canExpand(state)||canJump(state));
+  expandButton.textContent=canJump(state)?'Saut de dimension · recettes ×2 pour toujours ↗':!next?'Dojo final : équipe-le pour ouvrir le portail':!fullyEquipped(state)?'Équipe tout le dojo pour pouvoir agrandir':'Agrandir → '+next.name+' · '+format(expandCost(state))+' pièces';
+}
+$('#venue-items').addEventListener('click',event=>{
+  const id=event.target.closest('[data-item]')?.dataset.item,item=venueOf(state).items.find(entry=>entry.id===id);if(!item||!buyItem(state,id))return;
+  toast('Installé · '+item.name);scene.celebrate('purchase');audio.cue('purchase');award();updateUI();save();
+});
+$('#venue-expand').addEventListener('click',()=>{
+  if(canJump(state)){
+    if(!confirm('Saut de dimension : tu repars de la Rue avec des recettes ×2 pour toujours. Pièces, dojo, fans, techniques et dons repartent à zéro ; sceaux, boutique de sceaux, trophées et notes sont gardés. Sauter ?'))return;
+    dimensionJump(state);flow.reset();resolved.clear();lastActionSongTime=-1;resetCombo();
+    showMoment('SAUT DE DIMENSION','UNE NOUVELLE RUE.','La technologie alien t’ouvre un autre monde. Recettes ×'+2**state.dimension+'.','flow');
+  }else{
+    if(!expand(state))return;
+    showMoment('NOUVEAU DOJO',venueOf(state).name.toUpperCase(),'Il est vide : équipe-le pour attirer des élèves.','flow');
+  }
+  scene.celebrate('flow');audio.cue('milestone');award();updateUI();save();
+});
 // Seal shop buttons are built once; updateUI only refreshes their text and state.
 $('#perk-list').append(...Object.entries(PERKS).map(([id,p])=>{
   const button=document.createElement('button');button.type='button';button.className='perk';button.dataset.perk=id;
@@ -236,15 +277,6 @@ $('#dojo-continue').addEventListener('click',()=>{
   void advanceTrack(1,true);
 });
 function showSessionMenu(){$('#dojo-reveal').hidden=true;audio.pause();sessionMenuOpen=true;updateUI();$('#session-menu').scrollIntoView({behavior:'auto',block:'start'});}
-function showWelcome(result){
-  if(result.seconds<30)return;
-  if($$('dialog[open]').length){pendingWelcome=result;return;}
-  audio.pause();$('#welcome-amount').textContent='+'+format(result.reward);
-  const hours=Math.floor(result.seconds/3600),minutes=Math.floor(result.seconds%3600/60);
-  $('#welcome-duration').textContent='Pendant '+(hours?hours+' h '+minutes+' min':minutes?minutes+' min':Math.floor(result.seconds)+' s')+' de méditation.';
-  $('#welcome-detail').textContent=result.reward?'Ces pièces ont été ajoutés à ta réserve. Production d’absence limitée à 8 heures.':'Recrute des disciples pour que ton école gagne des pièces pendant ton absence.';
-  $('#welcome-dialog').showModal();
-}
 function updateUI(){
   document.body.classList.toggle('in-session',!sessionMenuOpen);$('#session-menu').hidden=!sessionMenuOpen;$('#battle-card').hidden=sessionMenuOpen;
   $('#start-button').disabled=!libraryLoaded||trackLoading||importing||transportBusy;$('#start-button').firstChild.textContent=transportBusy?'ACTIVATION… ':trackLoading?'CHARGEMENT… ':'JOUER ';
@@ -257,10 +289,10 @@ function updateUI(){
   $$('[data-impact-style]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.impactStyle===settings.impactStyle)));
   $('#technique-status').textContent='SON DES COUPS · '+IMPACT_STYLES[settings.impactStyle].label+' · Touche un style pour écouter et le choisir.';
   $('#previous-track').disabled=!libraryLoaded||trackLoading||importing||!library.next(-1);$('#next-track').disabled=!libraryLoaded||trackLoading||importing||!library.next(1);
-  const boost=flow.active&&audio.playing,opponent=rival(state.stage),goal=currentGoal(state),income=autoIncome(state)*(boost?3:1);
+  const boost=flow.active&&audio.playing,opponent=rival(state.stage),goal=currentGoal(state),income=sessionPayout(state);
   $('#coins').textContent=format(state.coins);$('#shop-coins').textContent=format(state.coins);$('#session-coins').textContent=format(state.coins);
-  $('#income-rate').textContent='par seconde : '+coinGain.format(income);$('#session-income').textContent=coinGain.format(income);
-  for(const unit of $$('.coin-unit'))unit.textContent=state.coins<2?'pièce':'pièces';$('#auto-stat').textContent=number.format(income);$('#school-dps').textContent=number.format(income);
+  $('#income-rate').textContent='par séance : '+format(income);$('#session-income').textContent=format(income);
+  for(const unit of $$('.coin-unit'))unit.textContent=state.coins<2?'pièce':'pièces';$('#auto-stat').textContent=format(income);$('#school-dps').textContent=format(income);
   $('#power-stat').textContent=format(attackPower(state)*(boost?2.5:1));
   $('#combo-count').innerHTML=combo+'<span>×</span>';
   $('#combo-run-label').textContent='ENCHAÎNEMENT · '+combo%8+' / 8';$$('#combo-chain i').forEach((dot,i)=>dot.classList.toggle('lit',i<combo%8));
@@ -269,34 +301,27 @@ function updateUI(){
   const health=state.hp/enemyHealth(state.stage)*100;
   $('#enemy-health').style.width=health+'%';$('.health-track').setAttribute('aria-valuenow',Math.round(health));
   $('.battle-card').classList.toggle('is-boss',opponent.boss);$('#rival-tag').textContent=opponent.hint;
-  const count=Object.keys(PRODUCERS).reduce((n,key)=>n+state.upgrades[key],0);
-  $('#school-count').textContent=count;$('#school-count-label').textContent=count>1?'recrues':'recrue';
-  $('#school-title').textContent=[state.dojoLit?'DOJO ILLUMINÉ':'SALLE D’ENTRAÎNEMENT','LA COUR OUVERTE','UNE ÉCOLE PREND VIE','LA VOIE DES MAÎTRES'][dojoTier(state)];
+  const count=students(state);
+  $('#school-count').textContent=count;$('#school-count-label').textContent=count>1?'élèves':'élève';
+  $('#school-title').textContent=venueOf(state).name.toUpperCase()+' · NIV. '+state.venue;renderVenue();
   $('#goal-label').textContent=goal.label;$('#goal-detail').textContent=goal.detail+' · '+format(Math.min(goal.current,goal.target))+' / '+format(goal.target);
   $('#goal-progress').style.width=Math.min(100,goal.current/goal.target*100)+'%';
   document.body.classList.toggle('flowing',boost);document.body.classList.toggle('flow-ready',flow.armed);
   const charge=flow.active?flow.remaining/32*100:flow.charge;
   $('#flow-fill').style.width=charge+'%';$('.flow-track').setAttribute('aria-valuenow',Math.round(charge));
-  $('#flow-status').textContent=flow.active?(audio.playing?'PIÈCES AUTO ×3 · '+flow.remaining+' TEMPS':'FLOW EN PAUSE · '+flow.remaining+' TEMPS'):flow.armed?'PRÊT · AU PROCHAIN TEMPS':flow.charge>0?Math.floor(flow.charge)+(settings.rhythmMode==='freestyle'?' % · Continue à frapper':' % · Continue en rythme'):settings.rhythmMode==='freestyle'?'Frappe à ta façon':'Enchaîne pour booster tes pièces';
+  $('#flow-status').textContent=flow.active?(audio.playing?'FANS ×2 · DÉGÂTS ×2,5 · '+flow.remaining+' TEMPS':'FLOW EN PAUSE · '+flow.remaining+' TEMPS'):flow.armed?'PRÊT · AU PROCHAIN TEMPS':flow.charge>0?Math.floor(flow.charge)+(settings.rhythmMode==='freestyle'?' % · Continue à frapper':' % · Continue en rythme'):settings.rhythmMode==='freestyle'?'Frappe à ta façon':'Enchaîne pour booster tes pièces';
   let affordable=false;
   $$('.upgrade').forEach(button=>{
-    const key=button.dataset.upgrade,cost=upgradeCost(state,key),level=state.upgrades[key],producer=PRODUCERS[key],unlocked=!producer||producerUnlocked(state,key);
-    button.disabled=!unlocked||state.coins<cost||!Number.isFinite(cost);button.classList.toggle('affordable',!button.disabled);button.classList.toggle('locked',!unlocked);
+    const key=button.dataset.upgrade,cost=upgradeCost(state,key),level=state.upgrades[key];
+    button.disabled=state.coins<cost||!Number.isFinite(cost);button.classList.toggle('affordable',!button.disabled);
     if(!button.disabled)affordable=true;
-    button.querySelector('small b').textContent=level;button.querySelector('em span').textContent=!unlocked?'SÉRIE '+producer.unlock:Number.isFinite(cost)?format(cost):'MAX';
-    if(producer){
-      const next=MILESTONES.find(n=>n>level),before=MILESTONES.filter(n=>n<=level).at(-1)||0;
-      const gain=(producerIncome({...state,upgrades:{...state.upgrades,[key]:level+1}},key)-producerIncome(state,key))*(boost?3:1);
-      button.querySelector('[data-upgrade-description]').textContent=unlocked?(Number.isFinite(cost)?'+'+number.format(gain)+' pièce'+(gain===1?'':'s')+' / s avec cette recrue':'Production : '+number.format(producerIncome(state,key)*(boost?3:1))+' pièces / s · MAX'):'Disponible à la série '+producer.unlock;
-      button.querySelector('.milestone-track i').style.width=(next?(level-before)/(next-before)*100:100)+'%';
-      button.querySelector('.milestone-copy').textContent=next?'Prochain palier : '+next+' → revenus ×2':'Tous les paliers · revenus ×'+producerMultiplier(level);
-    }
-    button.setAttribute('aria-label',button.querySelector('strong').firstChild.textContent.trim()+', '+level+', '+(!unlocked?'disponible à la série '+producer.unlock:Number.isFinite(cost)?format(cost)+' pièces':'maximum'));
+    button.querySelector('small b').textContent=level;button.querySelector('em span').textContent=Number.isFinite(cost)?format(cost):'MAX';
+    button.setAttribute('aria-label',button.querySelector('strong').firstChild.textContent.trim()+', '+level+', '+(Number.isFinite(cost)?format(cost)+' pièces':'maximum'));
   });
-  $('.dojo-button').dataset.affordable=affordable;
+  $('.dojo-button').dataset.affordable=affordable||venueOf(state).items.some(item=>!state.items.includes(item.id)&&state.coins>=item.cost)||canExpand(state)||canJump(state);
   renderPerks();$('#legacy-seals').textContent=format(state.seals);$('#legacy-bonus').textContent='+'+format(Math.round((legacyMultiplier(state)-1)*100))+' %';
   const gain=prestigeGain(state);$('#legacy-gain').textContent='+'+gain+' sceau'+(gain>1?'x':'');$('#prepare-prestige').disabled=gain<1;
-  $('#legacy-requirement').textContent=gain>0?'Ton école est prête. Une nouvelle voie s’ouvre à toi.':'Brise le sac de la série 20 et gagne 12 000 pièces dans cette école. Progression : série '+state.stage+' · '+format(state.runCoins)+' / 12 000 pièces.';
+  $('#legacy-requirement').textContent=state.venue<2?'Achète d’abord ta première salle : on ne transmet pas un coin de rue.':!canTransmit(state)?'Ton dojo est devenu trop célèbre pour être transmis. Vise le dojo high-tech alien et le saut de dimension.':gain>0?'Ton école est prête. Une nouvelle voie s’ouvre à toi.':'Gagne 12 000 pièces dans cette école pour transmettre. Progression : '+format(state.runCoins)+' / 12 000 pièces.';
   if($('#stats-dialog').open)updateStats();
 }
 function updateStats(){
@@ -325,7 +350,7 @@ function closeTrophy(){clearTimeout(trophyTimer);$('#trophy-popup').hidden=true;
 $('#close-trophy').addEventListener('click',closeTrophy);
 function dealDamage(amount,finisher=false){
   const previousStage=state.highestStage;
-  const before=state.bosses,wasBoss=state.stage%5===0,bagReward=enemyReward(state.stage)*(1+.25*boon(state,'bag')),coinsBefore=state.totalCoins,count=damageEnemy(state,amount);if(!count)return 0;
+  const before=state.bosses,wasBoss=state.stage%5===0,bagReward=enemyReward(state.stage)*(1+.25*boon(state,'bag')),coinsBefore=state.totalCoins,count=damageEnemy(state,amount,flow.active&&audio.playing?2:1);if(!count)return 0;
   if(finisher){addCoins(state,bagReward);audio.cue('flow');buzz([30,40,60,40]);}
   // The school can break several bags per second late in a run: the loud part (sound, big number, buzz) plays at most 4 times a second.
   const breakTime=performance.now(),loud=breakTime-lastBreakAt>250;if(loud)lastBreakAt=breakTime;
@@ -446,16 +471,9 @@ function openDojo(tab='school'){selectShopTab(tab);$('#dojo-sidebar').scrollInto
 $$('[data-dojo-scroll]').forEach(button=>button.addEventListener('click',()=>openDojo()));
 $('#goal-card').addEventListener('click',()=>{const goal=currentGoal(state);if(goal.action==='combat'){if(!audio.playing)play();else toast('Le sac renforcé arrive à la prochaine épreuve.');}else openDojo(goal.action==='legacy'?'legacy':'school');});
 $$('.upgrade').forEach(button=>button.addEventListener('click',()=>{
-  const key=button.dataset.upgrade,before=producerMultiplier(state.upgrades[key]),tier=dojoTier(state);
+  const key=button.dataset.upgrade;
   if(!buyUpgrade(state,key))return;
-  if(key==='echo' && state.upgrades.echo===1){
-    scene.welcomeDisciple=true;
-    toast('Ton premier disciple rejoint l’arène et s’entraîne avec toi.');
-  }
-  const milestone=PRODUCERS[key]&&producerMultiplier(state.upgrades[key])>before;
-  pulse(button,'bought');scene.celebrate('purchase');audio.cue(milestone?'milestone':'purchase');
-  if(milestone)showMoment('UN NOUVEAU PALIER',PRODUCERS[key].name.toUpperCase()+' ×2',state.upgrades[key]+' recrues. Les revenus de cette formation doublent.');
-  else if(dojoTier(state)>tier)showMoment('TON ÉCOLE ÉVOLUE','LE BRASIER GRANDIT.','De nouvelles bannières illuminent le dojo.');
+  pulse(button,'bought');scene.celebrate('purchase');audio.cue('purchase');
   award();updateUI();save();
 }));
 $('#prepare-prestige').addEventListener('click',()=>{audio.pause();const gain=prestigeGain(state);if(gain<1)return;$('#legacy-preview').textContent='Tu recevras '+gain+' sceau'+(gain>1?'x':'')+', pour une puissance permanente totale de +'+format((state.seals+gain)*20)+' %. Poings ardents niveau 1 seront offerts.';$('#legacy-confirm').showModal();});
@@ -634,7 +652,6 @@ $('#import-save').addEventListener('change', async event => {
     if (data.game !== 'pulsebound' || data.state?.version !== 1) throw new Error('Sauvegarde Pulsebound non reconnue.');
     audio.pause();flow.reset();resolved.clear();lastActionSongTime=-1;
     state = restoreState(data.state);resetSong();
-    const importedReward=offlineReward(state);showWelcome(importedReward);
     resetCombo();
     updateUI();
     save();
@@ -680,12 +697,9 @@ function drawNotes(time){
   $$('#beat-meter i').forEach((dot,index)=>dot.classList.toggle('lit',Boolean(lastBeatPulse&&lastBeatPulse.index%8===index&&clock-lastBeatPulse.songTime>=0&&clock-lastBeatPulse.songTime<.14)));
 }
 function frame(now){
-  const elapsed=Math.max(0,(now-lastFrame)/1000),delta=Math.min(.3,elapsed);lastFrame=now;
+  lastFrame=now;
   if(!document.hidden){
-    const boost=flow.active&&audio.playing,passive=autoPower(state)*(boost?3:1);
-    earnPassive(state,elapsed,boost);
-    if(passive>0){dealDamage(passive*delta);if(!autoEnabled&&now-autoFlashAt>1300){scene.strikeBag(now,.25);scene.animate('hero','auto',now);autoFlashAt=now;}}
-    const time=audio.audibleTime(now),clock=time-settings.latency/1000;
+    const boost=flow.active&&audio.playing,time=audio.audibleTime(now),clock=time-settings.latency/1000;
     if(autoEnabled&&audio.playing&&!sessionMenuOpen&&!$$('dialog[open]').length){const event=autoStriker.take(rhythm,clock);if(event)void act(now,event);}
     if(audio.playing)tickHold(clock,now);
     if(audio.playing&&!sessionMenuOpen&&!$$('dialog[open]').length&&settings.rhythmMode==='tempo'){
@@ -699,9 +713,9 @@ function frame(now){
     if(audio.playing && time<0)$('#timing-text').textContent='PRÊT · '+Math.max(1,Math.ceil(-time/(60/audio.bpm)));
     editor.tick(now);coach.tick();
     const nearest=rhythm.nearest(clock),distance=settings.rhythmMode==='tempo'&&nearest?Math.abs(nearest.time-clock):1;
-    const disciples=state.upgrades.echo+state.upgrades.adept+state.upgrades.master;
+    const disciples=students(state);
     const next=rhythm.next('punch',clock),preparation=!sessionMenuOpen&&audio.playing&&settings.rhythmMode==='tempo'&&next?Math.max(0,1-(next.time-clock)/.16):0;
-    scene.render(now,{combo,upcomingMove:next?learnedMove(techniqueFor(next.index),combo+1,state.highestStage,next.index):'punch',arenaVisible:!sessionMenuOpen,lit:state.dojoLit,playing:audio.playing,beatPhase:distance,preparation,dance:danceEnabled&&audio.playing&&!sessionMenuOpen,musicalBeat:beatPosition(audio.conductor?.beats,time,audio.bpm,audio.offset),flow:boost,tier:dojoTier(state),disciples,boss:rival(state.stage).boss});
+    scene.render(now,{venueArt:venueOf(state).art,combo,upcomingMove:next?learnedMove(techniqueFor(next.index),combo+1,state.highestStage,next.index):'punch',arenaVisible:!sessionMenuOpen,lit:state.dojoLit,playing:audio.playing,beatPhase:distance,preparation,dance:danceEnabled&&audio.playing&&!sessionMenuOpen,musicalBeat:beatPosition(audio.conductor?.beats,time,audio.bpm,audio.offset),flow:boost,tier:dojoTier(state),disciples,boss:rival(state.stage).boss});
     if(now-lastPaint>=100){updateUI();lastPaint=now;}
   }
   requestAnimationFrame(frame);
@@ -709,10 +723,9 @@ function frame(now){
 let hiddenAt=0;
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){state.savedAt=Date.now();try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch{}hiddenAt=Date.now();audio.pause();}
-  else{lastFrame=performance.now();if(hiddenAt){const result=offlineReward(state);showWelcome(result);hiddenAt=0;save();}updateUI();}
+  else{lastFrame=performance.now();hiddenAt=0;updateUI();}
 });
 window.addEventListener('pagehide',()=>{if(!document.hidden){state.savedAt=Date.now();try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch{}}});
 setInterval(save,5000);award();setTrackUI();updateUI();syncTransport();requestAnimationFrame(frame);
-$$('dialog').forEach(dialog=>dialog.addEventListener('close',()=>{showTrophy();if(pendingWelcome&&!$$('dialog[open]').length){const result=pendingWelcome;pendingWelcome=null;showWelcome(result);}}));
-showWelcome(welcome);
+$$('dialog').forEach(dialog=>dialog.addEventListener('close',()=>showTrophy()));
 if(!storageAvailable)setTimeout(()=>toast('Sauvegarde locale indisponible. Exporte ta progression dans les réglages.'),500);

@@ -1,39 +1,43 @@
-# Pulsebound — les pièces au premier plan
+# Pulsebound — de la Rue au dojo intergalactique
 
-Révision du 14 novembre 2026 après retour sur téléphone.
+Révision du 16 novembre 2026 : l’économie par seconde (recrues, gains d’absence) est remplacée par une progression de dojo en dojo.
 
-La boucle principale est : frapper → gagner des pièces → recruter → augmenter le revenu automatique. Le score, les records par morceau et le pourcentage de précision ont été retirés du combat et du calcul. Les combos servent encore au combat, au Flow et aux trophées.
+## La boucle
 
-## Affichage
+1. Frapper en rythme rapporte des pièces (0,01 par frappe) et brise des sacs (prime du sac, coup de grâce ×2).
+2. Chaque sac brisé amène un fan (×2 pendant le Flow, +25 % par don Bouche-à-oreille).
+3. À la fin de chaque morceau, le dojo verse une **recette de séance** : (fans × pourboire + élèves × frais) × confort × note × sceaux × dons × dimension. Note : S ×2, A ×1,5, B ×1,2, sinon ×1.
+4. Les pièces achètent les équipements du dojo actuel (élèves et confort). Une fois tout installé, on paie le dojo suivant et on repart d’une salle vide.
+5. Transmission possible du niveau 2 au niveau 7 (sceaux, retour à la Rue). Au niveau 17 entièrement équipé : saut de dimension, retour à la Rue avec des recettes ×2 pour toujours, sceaux gardés.
 
-Le bandeau supérieur reste visible pendant le défilement, y compris devant la boutique sur téléphone. Il présente le solde et le revenu en pièces par seconde. Sur mobile, la réserve dispose de sa propre ligne lisible. Au-dessus du combat, les pièces et le revenu remplacent le score. Les nombres flottants des frappes montrent maintenant les pièces reçues.
+Il n’y a plus de gain pendant l’absence ni de revenu par seconde.
 
-La boutique affiche les revenus de chaque formation et son prochain palier. Les améliorations restent en icônes au-dessus des recrues. La musique, les animations et les guides de synchronisation sont conservés.
+## Les 17 dojos
 
-## Revenus et achats
+Temps mesurés par `node simulate-progression.mjs` pour un bon joueur (80 % de Parfaits, morceaux de 2 min 30 enchaînés, sans transmission). Un débutant met environ deux fois plus longtemps ; les sceaux accélèrent les écoles suivantes.
 
-| Recrue | Premier prix | Revenu de base par recrue | Disponibilité |
-| --- | ---: | ---: | --- |
-| Disciple | 5 pièces | +0,1 pièce/s | Dès le début |
-| Adepte | 65 pièces | +1 pièce/s | Série 5 |
-| Maître | 550 pièces | +8 pièces/s | Série 10 |
+| Niveau | Dojo | Prix | Équipements (total) | Élèves | Atteint vers |
+|---:|---|---:|---:|---:|---:|
+| 1 | La Rue | — | 9 | 0 | 0 min |
+| 2 | Salle délabrée | 25 | 70 | 6 | 8 min |
+| 3 | Dojo gymnase | 170 | 467 | 10 | 32 min |
+| 4 | Dojo de quartier | 1 156 | 3 179 | 14 | 1.2 h |
+| 5 | Dojo renommé | 7 861 | 21 618 | 19 | 2.3 h |
+| 6 | Dojo de luxe | 53 453 | 146 997 | 22 | 3.6 h |
+| 7 | Dojo militaire | 363 483 | 999 579 | 28 | 6.0 h |
+| 8 | Dojo high-tech | 2.5 × 10^6 | 6.8 × 10^6 | 35 | 10.0 h |
+| 9 | Dojo spatial | 1.7 × 10^7 | 4.6 × 10^7 | 38 | 16.7 h |
+| 10 | Rue alien | 1.1 × 10^8 | 6.3 × 10^7 | 16 | 28.7 h |
+| 11 | Salle délabrée alien | 4.5 × 10^8 | 1.2 × 10^9 | 46 | 50.0 h |
+| 12 | Dojo gymnase alien | 1.7 × 10^9 | 4.8 × 10^9 | 50 | 67.7 h |
+| 13 | Dojo de quartier alien | 6.8 × 10^9 | 1.9 × 10^10 | 54 | 85.7 h |
+| 14 | Dojo renommé alien | 2.6 × 10^10 | 7.3 × 10^10 | 59 | 105.2 h |
+| 15 | Dojo de luxe alien | 1.0 × 10^11 | 2.8 × 10^11 | 62 | 125.5 h |
+| 16 | Dojo militaire alien | 4.0 × 10^11 | 1.1 × 10^12 | 68 | 148.6 h |
+| 17 | Dojo high-tech alien | 1.6 × 10^12 | 4.3 × 10^12 | 75 | 169.6 h |
 
-Les revenus sont crédités directement, même si aucun sac n’est brisé et si la musique est en pause. Les sacs brisés ajoutent leur prime séparée. Les gains de frappe conservent leur pondération par l’intervalle entre coups ; la précision et le Flow augmentent les pièces reçues.
+## Réglages
 
-À 10, 25, 50 et 100 recrues d’un type, ses revenus et sa puissance doublent. Les sceaux augmentent les revenus permanents de 20 % par sceau. Les poings augmentent les dégâts sans modifier le revenu de base affiché d’une recrue. Le Flow multiplie temporairement les revenus automatiques par trois pendant la lecture.
+Tout est dans `dist/core.mjs` : `PRICE_GROWTH` (6.8, prix sur Terre), `ALIEN_PRICE_GROWTH` (3.9, planète alien), `TAKINGS_GROWTH` (3.4, recettes) et `DIFFICULTY` (multiplie tous les prix). Après un changement, relancer `node simulate-progression.mjs` pour voir les nouveaux temps.
 
-Le crédit de revenu utilise le temps réellement écoulé, sans perdre les secondes lors d’une image tardive. Les dégâts passifs conservent leur limite de rattrapage. Pendant l’absence, le jeu crédite le revenu régulier sans Flow ni simulation de sacs, jusqu’à huit heures. Les courtes absences sont aussi créditées ; la fenêtre de retour est réservée aux absences d’au moins 30 secondes.
-
-Les prix des améliorations restent inchangés : Poings 3 pièces, Focus 12, Furie 24. Leurs prix et ceux des recrues augmentent à chaque achat.
-
-## Conservation et vérification
-
-Les soldes, niveaux, trophées, playlists et réglages existants sont conservés. Les anciennes données de score déjà stockées ne sont plus lues ni utilisées ; aucune suppression du stockage musical n’est nécessaire.
-
-Les tests couvrent revenu direct, paliers, sceaux, Flow, durée réelle, absence plafonnée sans double crédit et restauration. Le simulateur économique inclut désormais ces revenus directs. Ses achats sont optimisés et ses résultats ne constituent pas une mesure de rétention ou une durée promise à un joueur.
-
-## Rythme des déblocages (16 novembre 2026)
-
-Le simulateur utilise désormais la vraie récompense de frappe (0,01 pièce) au lieu de 1,5. Mesure : premier disciple vers 0,6 à 1,9 min, adepte vers 4 à 6 min, maître vers 8 à 12 min, transmission vers 11 à 16 min. Les séries montent beaucoup plus vite que les pièces : la série 10 arrive en moins de 2 minutes. Les trois figures se débloquaient donc toutes dans la première minute ; elles arrivent maintenant aux séries 12, 22 et 28 et sont annoncées par une grande carte. Augmenter le seuil de transmission ou la croissance des prix des adeptes et maîtres ne rallonge la boucle que d'une à trois minutes : l'allonger nettement demanderait un rééquilibrage complet, à valider avec des joueurs.
-
-En fin de morceau, une carte affiche pièces gagnées, meilleur combo, parfaits et un éventuel nouveau record, avec « Titre suivant » sélectionné par défaut et « Rejouer ce titre ».
+Améliorations : Poings 3 pièces, Lecture du rythme 12, Furie 24 ; leur prix augmente à chaque achat. Ces résultats ne mesurent ni la rétention ni le plaisir : ils servent à éviter les murs et les trous dans la progression.

@@ -5,13 +5,13 @@ Un sac de frappe, une seule action et une école qui grandit. Le dojo conserve l
 ## Boucle de progression
 
 1. Une bonne frappe rapporte des dégâts et des pièces immédiatement. Un sac brisé ajoute une récompense.
-2. Disciples, adeptes et maîtres rapportent directement 0,1, 1 et 8 pièces/s de base par recrue. Ils infligent aussi des dégâts automatiques ; les sacs brisés ajoutent une prime. Les poings améliorent les dégâts des frappes et de l’école. Le premier objectif invite à recruter un disciple.
-3. Les paliers 10/25/50/100 doublent successivement la production du type de recrues concerné. Les coûts progressent à chaque achat.
+2. Chaque sac brisé amène un fan (deux pendant le Flow). À la fin de chaque morceau, le dojo verse une recette : pourboires des fans et frais des élèves, multipliés par le confort, la note du morceau (S ×2, A ×1,5, B ×1,2), les sceaux, les dons et la dimension.
+3. Nova part de la Rue. Chaque dojo a ses équipements (élèves et confort) ; une fois tout installé, il peut s’agrandir vers le suivant : 17 niveaux, de la Rue à la planète alien. Les poings améliorent les dégâts.
 4. Les succès attribuent leur prime une seule fois et l’objectif principal oriente vers le prochain déblocage.
 5. Tous les cinq niveaux, un sac renforcé possède trois fois la résistance et rapporte quatre fois la prime du niveau.
-6. Après le niveau 20 et 12 000 pièces gagnés dans l’école, une transmission donne `floor(sqrt(pièces_de_l’école / 12000))` sceaux. Chaque sceau ajoute 20 % de puissance. Le récapitulatif explique le redémarrage avant confirmation.
+6. Du niveau 2 au niveau 7, avec 12 000 pièces gagnées dans l’école, une transmission donne `floor(sqrt(pièces_de_l’école / 12000))` sceaux. Chaque sceau ajoute 20 % de puissance. Le récapitulatif explique le redémarrage avant confirmation. Au niveau 17 entièrement équipé, le saut de dimension renvoie dans la Rue avec des recettes ×2 pour toujours.
 
-Une session courte permet de frapper, acheter et voir une amélioration. Une session plus longue permet de choisir entre recrues, paliers, techniques et transmission. Les prix ne dépendent pas du morceau choisi.
+Une session courte permet de frapper, acheter et voir une amélioration. Une session plus longue permet de choisir entre équipements, agrandissement, techniques et transmission. Les prix ne dépendent pas du morceau choisi.
 
 ## Flow et équilibre musical
 
@@ -19,7 +19,7 @@ Le Flow se remplit selon l’intervalle local des événements et la précision.
 
 Le Flow démarre au prochain beat, dure 32 temps et se met en pause avec le transport. Son bonus passif ne s’applique que pendant la lecture. Les 32 temps sont présentés comme huit mesures de quatre temps ; il n’y a pas de détection de signature rythmique. La grille manuelle sert de repli sans beats exploitables. En Freestyle, aucune fenêtre de précision n’est imposée et les gains dépendent du temps entre frappes.
 
-Les morceaux importés restent locaux. Les replis de tempo, calibration et décalage restent disponibles. L’absence rapporte le revenu automatique régulier, sans Flow, pendant huit heures au maximum, sans simuler des séries de sacs ni appliquer le Flow hors ligne.
+Les morceaux importés restent locaux. Les replis de tempo, calibration et décalage restent disponibles.
 
 ## Ressenti et présentation
 
