@@ -4,6 +4,15 @@ import { combatLayout, spritePlacement } from './scene-layout.mjs';
 // Combo levels at 8/16/32/64: each one hits harder and shifts colour (orange, gold, cyan, pink, white).
 export const COMBO_COLORS=['#ffc58b','#ffd36b','#7ff0ff','#ff6bd6','#ffffff'];
 export function comboTier(combo){return combo>=64?4:combo>=32?3:combo>=16?2:combo>=8?1:0;}
+/**
+ * Heavy-bag pendulum (radians, rad/s). A hit is an instant push away from the hero; gravity pulls it back,
+ * friction slows it, and it bounces softly off the safe limit so it never leaves the frame or hits Nova.
+ */
+export function swingStep(bag,dt,limit,back=limit){
+  bag.velocity+=(-100*bag.angle-2*bag.velocity)*dt;bag.angle+=bag.velocity*dt;
+  if(bag.angle>limit||bag.angle<-back){bag.angle=bag.angle>0?limit:-back;bag.velocity*=-.35;}
+  return bag;
+}
 export class DojoScene {
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d');
@@ -18,7 +27,7 @@ export class DojoScene {
     this.motion=!matchMedia('(prefers-reduced-motion: reduce)').matches;this.intense=true;
     this.actions={hero:{kind:'idle',time:0},enemy:{kind:'idle',time:0}};
     this.particles=[];this.floats=[];this.shakeAt=-1000;this.shakePower=0;this.holdUntil=0;this.holdTime=0;this.zoomAt=-1000;this.zoomPower=0;this.flashAt=-1000;this.breakAt=-1000;this.rings=[];
-    this.bagStrikes=[];
+    this.bagStrikes=[];this.swing={angle:0,velocity:0};this.swingAt=0;
     this.resize();new ResizeObserver(()=>this.resize()).observe(canvas);
   }
   resize(){
@@ -61,19 +70,27 @@ export class DojoScene {
     if(this.motion&&this.intense){this.shakeAt=now;this.shakePower=kind==='flow'?18:8;this.zoomAt=now;this.zoomPower=kind==='flow'?.14:.06;this.ring(this.width*.5,this.height*.4,'#ffe2a0',2.2,now);}
   }
   ring(x,y,color,size,now){this.rings.push({x,y,color,size,time:now});this.rings=this.rings.slice(-8);}
-  strikeBag(now=performance.now(),power=1){this.bagStrikes.push({time:now,power});this.bagStrikes=this.bagStrikes.slice(-5);}
+  // Contact lands 45 ms after the input, like the impact particles.
+  strikeBag(now=performance.now(),power=1){this.bagStrikes.push({time:now+45,power,applied:false});this.bagStrikes=this.bagStrikes.slice(-5);}
   bag(now,reinforced){
     const c=this.ctx,w=this.width,h=this.height,x=this.layout.bagX,anchor=h*.055,width=Math.max(36,Math.min(100,w*(this.mobile?.15:.145))),top=h*.21,height=h*(this.mobile?.48:.58);
-    this.bagStrikes=this.bagStrikes.filter(s=>now-s.time<2200);
-    const swing=this.motion?this.bagStrikes.reduce((a,s)=>{const t=(now-s.time)/1000;return a+(t>=0?Math.sin(t*11)*Math.exp(-t*2.8)*s.power*.12:0);},0):0;
-    c.save();c.translate(x,anchor);const leftLimit=this.mobile?w/2+34+8:w*.6;
-    const clearance=Math.min(w-x-width*.6-8,x-leftLimit-width*.6);
-    const safeAngle=Math.min(.28,Math.max(0,clearance/(top-anchor+height)));
-    c.rotate(-Math.min(safeAngle,Math.max(-safeAngle,swing)));
+    this.bagStrikes=this.bagStrikes.filter(s=>now-s.time<600);
+    const leftLimit=this.mobile?w/2+34+8:w*.6;
+    // Away from Nova the bag may poke past the edge by half its width at the peak; towards her it must stay clear.
+    const reach=top-anchor+height,away=Math.min(.4,Math.max(0,(w-x-width*.1-8)/reach)),toward=Math.min(.3,Math.max(0,(x-leftLimit-width*.6)/reach));
+    // Pendulum stepped in small slices (a late frame never makes it jump); hits push it away from the hero.
+    const dt=Math.min(.05,Math.max(0,(now-this.swingAt)/1000));this.swingAt=now;
+    for(const s of this.bagStrikes)if(!s.applied&&s.time<=now){s.applied=true;if(this.motion)this.swing.velocity=Math.max(this.swing.velocity,0)+2.6*s.power;}
+    if(this.motion)for(let left=dt;left>0;left-=.008)swingStep(this.swing,Math.min(.008,left),away,toward);else this.swing={angle:0,velocity:0};
+    c.save();c.translate(x,anchor);
+    c.rotate(-this.swing.angle);
     c.strokeStyle='#ada59b';c.lineWidth=2;
     for(const dx of [-width*.25,width*.25]){c.beginPath();c.moveTo(0,0);c.lineTo(dx,top-anchor+5);c.stroke();}
     for(let i=0;i<4;i++){const y=i*(top-anchor)/4;c.strokeStyle=i%2?'#d5b99d':'#716b6d';c.beginPath();c.moveTo(-3,y);c.lineTo(3,y+8);c.lineTo(-3,y+16);c.stroke();}
     c.translate(0,top-anchor);
+    // Leather squash on contact: the bag flattens where it is hit, then wobbles back to shape.
+    const last=this.bagStrikes.filter(s=>s.applied).at(-1),since=last?(now-last.time)/1000:9;
+    if(this.motion&&since<.4){const squash=Math.min(1.5,last.power)*(Math.exp(-since*16)*.16+Math.sin(since*38)*Math.exp(-since*9)*.05);c.translate(0,height/2);c.scale(1-squash,1+squash*.45);c.translate(0,-height/2);}
     c.fillStyle=reinforced?'#694139':'#35404a';c.beginPath();c.moveTo(-width*.39,0);c.lineTo(width*.35,-2);c.lineTo(width*.5,12);c.lineTo(width*.49,height-13);c.lineTo(width*.3,height);c.lineTo(-width*.32,height);c.lineTo(-width*.5,height-13);c.lineTo(-width*.5,12);c.closePath();c.fill();
     c.fillStyle=reinforced?'#9b6150':'#52616a';c.beginPath();c.moveTo(-width*.39,0);c.lineTo(-width*.06,3);c.lineTo(-width*.13,height-4);c.lineTo(-width*.32,height);c.lineTo(-width*.5,height-13);c.lineTo(-width*.5,12);c.closePath();c.fill();
     c.fillStyle=reinforced?'#432a30':'#242b38';c.beginPath();c.moveTo(width*.35,-2);c.lineTo(width*.5,12);c.lineTo(width*.49,height-13);c.lineTo(width*.3,height);c.lineTo(width*.16,height-7);c.lineTo(width*.23,12);c.closePath();c.fill();
