@@ -120,7 +120,7 @@ async function play(){
       beatDisplayBound=true;
     }
     resetCombo();syncTransport();
-    if(fromMenu)requestAnimationFrame(()=>$('#battle-card').scrollIntoView({block:'start',behavior:'auto'}));
+    if(fromMenu){showTab('play');requestAnimationFrame(()=>$('#battle-card').scrollIntoView({block:'start',behavior:'auto'}));}
   }catch(error){const message=error.message||'Lecture audio indisponible. Essaie de relancer le morceau.';$('#session-error').textContent=message;$('#session-error').hidden=false;toast(message);}finally{transportBusy=false;updateUI();}
 }
 $('#play-button').addEventListener('click',()=>sessionMenuOpen?previewTrack():audio.playing?audio.pause():play());
@@ -276,7 +276,7 @@ $('#dojo-continue').addEventListener('click',()=>{
   $('#dojo-reveal').hidden=true;
   void advanceTrack(1,true);
 });
-function showSessionMenu(){$('#dojo-reveal').hidden=true;audio.pause();sessionMenuOpen=true;updateUI();$('#session-menu').scrollIntoView({behavior:'auto',block:'start'});}
+function showSessionMenu(){showTab('play');$('#dojo-reveal').hidden=true;audio.pause();sessionMenuOpen=true;updateUI();$('#session-menu').scrollIntoView({behavior:'auto',block:'start'});}
 function updateUI(){
   document.body.classList.toggle('in-session',!sessionMenuOpen);$('#session-menu').hidden=!sessionMenuOpen;$('#battle-card').hidden=sessionMenuOpen;
   $('#start-button').disabled=!libraryLoaded||trackLoading||importing||transportBusy;$('#start-button').firstChild.textContent=transportBusy?'ACTIVATION… ':trackLoading?'CHARGEMENT… ':'JOUER ';
@@ -467,7 +467,10 @@ $$('[data-shop-tab]').forEach((button,index)=>{
   button.addEventListener('click',()=>selectShopTab(button.dataset.shopTab));
   button.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const tabs=$$('[data-shop-tab]'),next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;selectShopTab(tabs[next].dataset.shopTab,true);});
 });
-function openDojo(tab='school'){selectShopTab(tab);$('#dojo-sidebar').scrollIntoView({behavior:scene.motion?'smooth':'auto',block:'nearest'});}
+// On phones the page has two tabs (play / dojo) driven by the bottom bar; wide screens ignore data-tab.
+function showTab(tab){document.body.dataset.tab=tab;$$('.mobile-nav [data-tab]').forEach(button=>button.setAttribute('aria-current',String(button.dataset.tab===tab)));}
+$$('.mobile-nav [data-tab]').forEach(button=>button.addEventListener('click',()=>{showTab(button.dataset.tab);scrollTo(0,0);}));
+function openDojo(tab='school'){showTab('dojo');selectShopTab(tab);$('#dojo-sidebar').scrollIntoView({behavior:scene.motion?'smooth':'auto',block:'nearest'});}
 $$('[data-dojo-scroll]').forEach(button=>button.addEventListener('click',()=>openDojo()));
 $('#goal-card').addEventListener('click',()=>{const goal=currentGoal(state);if(goal.action==='combat'){if(!audio.playing)play();else toast('Le sac renforcé arrive à la prochaine épreuve.');}else openDojo(goal.action==='legacy'?'legacy':'school');});
 $$('.upgrade').forEach(button=>button.addEventListener('click',()=>{
