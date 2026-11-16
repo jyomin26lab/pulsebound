@@ -1,0 +1,185 @@
+.combat-layout {
+  --rail: clamp(84px, 11vw, 134px);
+  --target: clamp(58px, 8vw, 96px);
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  height: clamp(410px, 62svh, 760px);
+}
+.combat-layout #arena { height: 100%; min-width: 0; min-height: 0; }
+.combat-layout .bag-hitbox {left:64%;width:28%}
+.combat-layout .target-pair {
+  background: linear-gradient(180deg,#fff0bc,#f0db9d 65%,#d6c58b);
+  border-right: 3px solid #29494a;
+  overflow: hidden;
+}
+.combat-layout .target-pair::before { display: none; }
+.combat-layout #note-runway { height: 100%; width: 100%; }
+.combat-layout .note-path {
+  left: 50%; right: auto; top: 34px; bottom: 0;
+  height: auto; width: 2px;
+  background: linear-gradient(#796c3c,#99895060);
+}
+.combat-layout .note-path::after {
+  inset: 0 -15px;
+  background: repeating-linear-gradient(0deg,transparent 0 43px,#8a815145 43px 44px);
+}
+.combat-layout .note-runway .target-lane {
+  top: 16px; left: 0; width: 100%; gap: 0;
+}
+.combat-layout .target-lane>span { display:none; }
+.combat-layout #strike-button { width:var(--target)!important; height:var(--target)!important; }
+.combat-layout #strike-button img { max-width:58%; max-height:58%; }
+.combat-layout .queue-note {
+  top:0; left:50%; width:calc(var(--target)*.68); height:calc(var(--target)*.68);
+}
+.combat-layout .queue-note img { width:70%; height:70%; }
+.combat-layout .queue-note small { bottom:-8px; right:-4px; background:#fff3ce; border-radius:8px; padding:0 4px; }
+.in-session .rhythm-deck { min-height:0; }
+@media(max-width:600px) {
+  .combat-layout { --rail:72px; --target:52px; height:clamp(350px,57svh,560px); }
+  .combat-layout .battle-hud { inset:12px 7px auto; grid-template-columns:minmax(0,1fr) 32px minmax(0,1fr); gap:5px; }
+  .combat-layout .fighter-name strong { font-size:clamp(12px,3vw,17px); }
+  .combat-layout .fighter-name span { display:none; }
+}
+
+/* The arena uses the same ink, gold and display lettering as the dojo HUD. */
+#battle-card .earnings-bar {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;
+}
+.coin-counter { grid-column:2; text-align:center; }
+.coin-counter strong { justify-content:center; line-height:1; }
+.coin-counter .coin-unit {
+  color:var(--paper);
+  font:800 10px var(--font);
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.coin-counter small { margin-top:5px; font:700 12px var(--font); letter-spacing:.02em; }
+.coin-counter #session-income { color:var(--paper); font-variant-numeric:tabular-nums; }
+#battle-card #restart-session { justify-self:end; }
+.topbar .wallet {
+  display:grid;
+  grid-template-columns:auto auto auto;
+  justify-content:center;
+  row-gap:2px;
+}
+.topbar .wallet .income-rate { margin:0; padding:0; }
+@media(max-width:480px) {
+  #battle-card .earnings-bar { gap:4px; padding-inline:8px; }
+  .coin-counter strong { gap:4px; }
+  .coin-counter strong img { width:24px; height:24px; }
+}
+
+/* Both outlines match the travelling note at the beat. The full target remains tappable. */
+.combat-layout #strike-button {
+  background:transparent;
+  border:0;
+  box-shadow:none;
+  overflow:visible;
+  touch-action:manipulation;
+  transition:none;
+}
+.combat-layout #strike-button:active,.combat-layout #strike-button.impact {
+  transform:none; animation:none;
+}
+#strike-button::before,#strike-button .target-ring {
+  content:"";position:absolute;inset:16%;border-radius:50%;
+  box-sizing:border-box;pointer-events:none;
+}
+#strike-button::before {border:2px dashed #285051;box-shadow:0 0 0 1px #fff4cf}
+#strike-button .target-ring {border:2px solid #b45b25;transition:none}
+#strike-button.target-due::before {border:3px solid #174b43;box-shadow:0 0 0 3px #efb734}
+#strike-button>img {display:none}
+#strike-button .strike-idle {font:800 11px var(--font);color:#345351;margin:0}
+#strike-button.target-active .strike-idle {visibility:hidden}
+#strike-button .strike-cue {
+  display:none;position:absolute;left:50%;top:-11px;transform:translateX(-50%);
+  color:#fff6ce;background:#254b47;border-radius:4px;padding:2px 6px;
+  font:800 10px/1.2 var(--font);white-space:nowrap;
+}
+#strike-button.target-due .strike-cue {display:block}
+#strike-button:focus-visible {outline:2px solid #275667;outline-offset:0}
+@media(prefers-reduced-motion:reduce){#strike-button .target-ring{transform:none!important}}
+
+#mobile-strike { display:none; }
+@media(max-width:700px) {
+  .combat-layout {
+    --rail:68px;
+    --target:60px;
+    display:block;
+    position:relative;
+    height:clamp(320px,53svh,510px);
+  }
+  .combat-layout #arena { width:100%; }
+  .combat-layout .target-pair {
+    position:absolute;
+    z-index:4;
+    left:calc(50% - var(--rail)/2);
+    top:54px;
+    bottom:10px;
+    width:var(--rail);
+    border:1px solid #ead7a16b;
+    border-radius:36px;
+    background:linear-gradient(#fff0d4e8,#f6ddaaa8 75%,#fff0c810);
+  }
+  .combat-layout .battle-hud {
+    inset:10px 8px auto;
+    grid-template-columns:minmax(0,1fr) 38px minmax(0,1fr);
+    gap:8px;
+  }
+  .combat-layout .fighter-name strong {font-size:16px}
+  .combat-layout .hero-mastery {font-size:7px}
+  .combat-layout .bag-hitbox {left:72%;width:27%;top:20%;height:53%}
+  .combat-layout .combo-badge {left:8px;right:auto;top:auto;bottom:14px;transform:none}
+  .combat-layout .combat-feedback {left:80%;top:65%!important;width:38%;font-size:17px}
+  .combat-layout .combat-feedback small {font-size:7px;white-space:normal}
+  .combat-layout .stage-caption {display:none}
+  #battle-card #mobile-strike {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    width:100%;
+    min-height:72px;
+    padding:12px;
+    background:var(--gold);
+    color:var(--ink);
+    border:0;
+    border-block:3px solid var(--ink);
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #mobile-strike strong {font:900 italic 27px/1 var(--display)}
+  #mobile-strike span {font:700 11px var(--font)}
+  #mobile-strike.target-due {background:#ffeab1;box-shadow:inset 0 0 0 4px #bf6b26}
+  #mobile-strike:active {background:#ed9d45}
+  #mobile-strike:focus-visible {outline:3px solid #fff2c9;outline-offset:-6px}
+  .in-session .rhythm-deck {padding:10px;min-height:0}
+  .in-session .rhythm-heading {flex-wrap:wrap;gap:6px}
+  .in-session .flow-panel {margin:10px auto;width:100%}
+  .in-session .combat-controls {display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .in-session .combat-controls #auto-strike {grid-column:1/-1;min-height:44px}
+  .in-session .combat-controls button[data-impact-style] {min-height:44px}
+  .in-session .combo-run {padding:8px 0;flex-wrap:wrap;font-size:8px}
+  .in-session .combo-run small {display:none}
+  #battle-card .earnings-bar {padding:7px 8px}
+  #battle-card .coin-counter strong {font-size:26px}
+  #battle-card .coin-counter small {font-size:10px}
+}
+
+.density-choice {display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0;font:700 12px var(--font);color:var(--ink)}
+.density-choice select {max-width:70%;min-height:44px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);padding:8px;font:700 12px var(--font)}
+#calibration-tap {min-height:80px;width:100%;padding:12px;border:2px solid var(--ink);background:var(--gold);color:var(--ink);font:800 italic 24px var(--display);touch-action:none;user-select:none}
+#calibration-tap:active {background:#ed9d45}
+#calibration-tap:disabled {opacity:.5}
+@media(max-width:400px){.density-choice{align-items:stretch;flex-direction:column}.density-choice select{max-width:100%;width:100%}}
+
+.rhythm-heading .combo-badge {position:static;display:flex;align-items:center;gap:6px;transform:none;text-shadow:none;flex-shrink:0}
+.rhythm-heading .combo-badge>strong {font-size:26px;color:var(--ink);text-shadow:none}
+.rhythm-heading .combo-badge>strong>span {font-size:16px;color:#a76723}
+.rhythm-heading .combo-badge>span {font-size:8px;color:var(--ink)}

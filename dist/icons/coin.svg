@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" role="img" aria-labelledby="title"><title id="title">Éclats</title><g stroke="#142b30" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="m48 3 43 43-4 9-38 38L4 50l1-9Z" fill="#142b30" stroke-width="3"/><path d="m48 7 38 39-3 6-35 35L9 49l1-6Z" fill="#ffcc3c"/><path d="m48 12 32 33-2 6-30 30-32-33Z" fill="#28454d" stroke="#fff1c1" stroke-width="1"/><path d="m19 42 29-25 29 30-29 29Z" fill="#ffcc3c" fill-opacity=".12" stroke="none"/>
+ <path d="m48 16 24 11 11 22-12 23-23 11-23-12-11-23 12-22Z" fill="#cb7b29"/>
+ <path d="m48 13 23 11 10 23-11 23-23 10-23-11-10-23 11-23Z" fill="#ffcc3c"/>
+ <path d="m48 25 14 7 7 15-7 14-15 7-14-7-7-15 7-14Z" fill="none" stroke="#d79027" stroke-width="3"/>
+ <path d="m51 29-16 21 11-1-2 16 17-23-12 2Z" fill="#fff1c1"/>
+ <path d="m27 26 7-3m31 44 5-6" fill="none" stroke="#fff1c1" stroke-width="3"/></g></svg>
