@@ -49,6 +49,7 @@ import("./dist/core.mjs").then(({BOONS,boonChoices,applyBoon,attackPower,produce
   b.pendingBoons=2;assert.equal(restoreState(JSON.parse(JSON.stringify(b))).pendingBoons,2,"Dons en attente sauvegardés");assert.equal(restoreState({version:1,pendingBoons:-3}).pendingBoons,0);
   b.stage=21;b.runCoins=12000;prestige(b);assert.deepEqual(b.boons,{},"La transmission remet les dons à zéro");assert.equal(b.pendingBoons,0);
 });
+import("./dist/core.mjs").then(({finisherReady,enemyHealth})=>{const f=freshState();assert.equal(finisherReady(f),false,'Sac neuf : pas de coup de grâce');f.hp=enemyHealth(1)*.3;assert.equal(finisherReady(f),true);f.stage=5;f.hp=enemyHealth(5)*.31;assert.equal(finisherReady(f),false,'Seuil relatif au sac renforcé');});
 import("./dist/core.mjs").then(({ACHIEVEMENTS,rival,claimAchievements})=>{
   assert.equal(new Set(ACHIEVEMENTS.map(a=>a.id)).size,ACHIEVEMENTS.length,"Identifiants de trophées uniques");assert.ok(ACHIEVEMENTS.length>=30);assert.ok(ACHIEVEMENTS.filter(a=>a.hidden).length>=3);
   const t=freshState();t.grades={a:"S",b:"A",c:"A"};t.daily={lastDone:"2026-11-16",streak:3};t.boons={income:3,power:2};const ids=claimAchievements(t).map(a=>a.id);for(const id of ["gradeS","gradeA3","daily1","daily3","boons5","fervor3"])assert.ok(ids.includes(id),id);assert.ok(!ids.includes("gradeS5")&&!ids.includes("daily7"));

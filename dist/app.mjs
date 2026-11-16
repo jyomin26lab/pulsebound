@@ -1,6 +1,6 @@
 import { judgePlayable } from './input-timing.mjs';
 import { DeviceCalibration } from './device-calibration.mjs';
-import { SAVE_KEY, freshState, restoreState, offlineReward, enemyHealth, enemyReward, attackPower, autoPower, autoIncome, producerIncome, earnPassive, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, PRODUCERS, MILESTONES, ACHIEVEMENTS, producerUnlocked, producerMultiplier, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade, dailyChallenge, challengeMet, completeChallenge, dailyStreak, BOONS, boon, boonChoices, applyBoon, PERKS, perk, perkCost, buyPerk, sealsAvailable } from './core.mjs';
+import { SAVE_KEY, freshState, restoreState, offlineReward, enemyHealth, enemyReward, attackPower, autoPower, autoIncome, producerIncome, earnPassive, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, PRODUCERS, MILESTONES, ACHIEVEMENTS, producerUnlocked, producerMultiplier, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade, dailyChallenge, challengeMet, completeChallenge, dailyStreak, BOONS, boon, boonChoices, applyBoon, finisherReady, PERKS, perk, perkCost, buyPerk, sealsAvailable } from './core.mjs';
 import { FlowMeter } from './flow.mjs';
 import { MusicLibrary } from './music-library.mjs';
 import { freestyleInterval, IMPACT_STYLES } from './audio-sfx.mjs';
@@ -323,13 +323,14 @@ function showTrophy(){
 }
 function closeTrophy(){clearTimeout(trophyTimer);$('#trophy-popup').hidden=true;showTrophy();}
 $('#close-trophy').addEventListener('click',closeTrophy);
-function dealDamage(amount){
+function dealDamage(amount,finisher=false){
   const previousStage=state.highestStage;
-  const before=state.bosses,coinsBefore=state.totalCoins,count=damageEnemy(state,amount);if(!count)return 0;
+  const before=state.bosses,wasBoss=state.stage%5===0,bagReward=enemyReward(state.stage)*(1+.25*boon(state,'bag')),coinsBefore=state.totalCoins,count=damageEnemy(state,amount);if(!count)return 0;
+  if(finisher){addCoins(state,bagReward);audio.cue('flow');buzz([30,40,60,40]);}
   // The school can break several bags per second late in a run: the loud part (sound, big number, buzz) plays at most 4 times a second.
   const breakTime=performance.now(),loud=breakTime-lastBreakAt>250;if(loud)lastBreakAt=breakTime;
   pulse($('.wallet'),'rewarding');scene.celebrate('victory',breakTime,loud?'+'+format(state.totalCoins-coinsBefore)+' ◈':'');
-  if(loud){audio.bagBreak();buzz([20,30,40]);}
+  if(loud){audio.bagBreak();buzz([20,30,40]);scene.ejectBag(breakTime,{reinforced:wasBoss,finisher});}
   if(state.bosses>before){state.pendingBoons++;showMoment('ÉPREUVE ACCOMPLIE','LE SAC CÈDE.',audio.playing?'Un don t’attend à la fin du morceau.':'Choisis un don pour ton dojo.','boss');audio.cue('boss');if(!audio.playing)offerBoons();}
   else if(state.stage%5===0)showMoment('ÉPREUVE · SÉRIE '+state.stage,'SAC RENFORCÉ','Une résistance supérieure. Une récompense ×4.','boss');
   const unlocked=Object.values(FORMS).filter(form=>form.stage>previousStage && form.stage<=state.highestStage);
@@ -408,12 +409,12 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
     perfectRun=judgment.grade==='perfect'&&!automated?perfectRun+1:0;
     const hit=hitDamage(state,judgment.grade,combo),damage=Math.max(1,Math.round(hit.damage*weight*(boost?2.5:1)));
     const coinsEarned=0.01;addCoins(state,coinsEarned);
-    const count=dealDamage(damage);flow.hit(judgment.grade,interval);
+    const grace=!free&&!automated&&judgment.grade==='perfect'&&finisherReady(state),count=dealDamage(damage,grace),graceKill=grace&&count>0;flow.hit(judgment.grade,interval);
     const technique=techniqueFor(judgment.event?.index??state.hits-1,armedTechnique);armedTechnique=null;
     const move=learnedMove(technique,combo,state.highestStage,judgment.event?.index??state.hits-1);
     scene.animate('hero',move,now,Math.max(210,Math.min(420,interval*850)));scene.strikeBag(now,hit.critical?1.5:1);
     scene.impact({damage:'+'+coinGain.format(coinsEarned)+' ◈',critical:hit.critical,combo,now:now+45});
-    feedback(hit.critical?'CRITIQUE':automated?'AUTO':free?'IMPACT':judgment.grade==='perfect'?'PARFAIT'+(perfectRun>1?' ×'+perfectRun:''):'BIEN',count?'SAC BRISÉ · SÉRIE '+state.stage:(FORMS[move]?.label||STYLE_MOVES[move]||TECHNIQUES[technique].label).toUpperCase()+' · +'+coinGain.format(coinsEarned)+' PIÈCE'+(coinsEarned<2?'':'S'),hit.critical?'critical':judgment.grade);
+    feedback(graceKill?'COUP DE GRÂCE !':hit.critical?'CRITIQUE':automated?'AUTO':free?'IMPACT':judgment.grade==='perfect'?'PARFAIT'+(perfectRun>1?' ×'+perfectRun:''):'BIEN',graceKill?'PRIME DU SAC ×2 · SÉRIE '+state.stage:count?'SAC BRISÉ · SÉRIE '+state.stage:(FORMS[move]?.label||STYLE_MOVES[move]||TECHNIQUES[technique].label).toUpperCase()+' · +'+coinGain.format(coinsEarned)+' PIÈCE'+(coinsEarned<2?'':'S'),hit.critical?'critical':judgment.grade);
     audio.hit(judgment.grade,hit.critical,combo);if(!automated)buzz(hit.critical?30:10);
     if(judgment.event?.hold&&!free&&audio.playing){holding={index:judgment.event.index,end:judgment.event.time+judgment.event.hold,nextTick:judgment.event.time+.18,auto:automated,source:null,ticks:0};feedback('MAINTIENS','RAFALE · GARDE LA TOUCHE ENFONCÉE','perfect');}pulse($('.combo-badge'),'bump');pulse($('#strike-button'),'impact');award();
     if(!free&&!automated&&[8,16,32,64,128].includes(combo)){showMoment('ENCHAÎNEMENT SANS RUPTURE','COMBO ×'+combo,combo>=32?'LE DOJO SUIT TON FLOW.':'CHAQUE COUP TROUVE SA PLACE.','flow');audio.cue('milestone');scene.celebrate('flow');}
@@ -651,12 +652,13 @@ function drawNotes(time){
   const anchor=target.parentElement.offsetTop+target.offsetTop+target.offsetHeight/2;
   const ahead=Math.max(1.6,Math.min(2.8,(height-anchor)/170));
   const clock=time-settings.latency/1000,upcoming=rhythm.upcoming(clock,ahead,.2).filter(event=>event.index>lastExpired&&!resolved.has(event.index)),visible=new Set();
+  const finisherIndex=settings.rhythmMode==='tempo'&&finisherReady(state)?upcoming[0]?.index:-1;
   for(const note of upcoming){
     visible.add(note.index);let node=queueNodes.get(note.index);
     if(!node){node=document.createElement('span');node.className='queue-note'+(note.beat?'':' offbeat');const img=document.createElement('img');img.src='./icons/power.svg';img.alt='';const label=document.createElement('small');label.textContent=note.index%8+1;node.append(img,label);if(note.hold){const tail=document.createElement('i');tail.className='hold-tail';node.append(tail);}$('#upcoming-notes').append(node);queueNodes.set(note.index,node);}
     const technique=techniqueFor(note.index,note.index===upcoming[0]?.index?armedTechnique:null);if(node.dataset.currentMove!==technique){node.dataset.currentMove=technique;node.querySelector('img').src=TECHNIQUES[technique].icon;}
     const delay=note.time-clock,y=anchor+delay/ahead*(height-anchor);
-    node.style.transform='translate3d(-50%,calc('+y+'px - 50%),0)';node.style.opacity=delay<-.06?Math.max(0,1+(delay+.06)*10):Math.min(1,(ahead-delay)*4);node.classList.toggle('arriving',Math.abs(delay)<.12);if(note.hold)node.lastChild.style.height=note.hold/ahead*(height-anchor)+'px';
+    node.style.transform='translate3d(-50%,calc('+y+'px - 50%),0)';node.style.opacity=delay<-.06?Math.max(0,1+(delay+.06)*10):Math.min(1,(ahead-delay)*4);node.classList.toggle('arriving',Math.abs(delay)<.12);node.classList.toggle('finisher',note.index===finisherIndex);if(note.hold)node.lastChild.style.height=note.hold/ahead*(height-anchor)+'px';
   }
   // The held note stays pinned on the target while its tail shrinks.
   if(holding&&queueNodes.has(holding.index)){const node=queueNodes.get(holding.index);visible.add(holding.index);node.style.transform='translate3d(-50%,calc('+anchor+'px - 50%),0)';node.style.opacity=1;node.lastChild.style.height=Math.max(0,holding.end-clock)/ahead*(height-anchor)+'px';}

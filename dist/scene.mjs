@@ -82,7 +82,13 @@ export class DojoScene {
     const dt=Math.min(.05,Math.max(0,(now-this.swingAt)/1000));this.swingAt=now;
     for(const s of this.bagStrikes)if(!s.applied&&s.time<=now){s.applied=true;if(this.motion)this.swing.velocity=Math.max(this.swing.velocity,0)+2.6*s.power;}
     if(this.motion)for(let left=dt;left>0;left-=.008)swingStep(this.swing,Math.min(.008,left),away,toward);else this.swing={angle:0,velocity:0};
-    c.save();c.translate(x,anchor);
+    // Knock-out: the old bag hangs during the hit-stop, flies off spinning, then the next one drops from the ceiling.
+    const ej=this.ejection,et=ej?(now-ej.at)/1000:9;let drop=0;
+    if(ej&&et>=1.05)this.ejection=null;
+    else if(ej&&et>=0&&et<.6){this.flyingBag(now,ej,et,x,top,width,height);return;}
+    else if(ej&&et>=.6){drop=(1-Math.min(1,(et-.6)/.45))**2;this.swing={angle:0,velocity:0};}
+    if(ej&&et<0)reinforced=ej.reinforced;
+    c.save();c.translate(x,anchor-drop*(top+height+60));
     c.rotate(-this.swing.angle);
     c.strokeStyle='#ada59b';c.lineWidth=2;
     for(const dx of [-width*.25,width*.25]){c.beginPath();c.moveTo(0,0);c.lineTo(dx,top-anchor+5);c.stroke();}
@@ -91,6 +97,33 @@ export class DojoScene {
     // Leather squash on contact: the bag flattens where it is hit, then wobbles back to shape.
     const last=this.bagStrikes.filter(s=>s.applied).at(-1),since=last?(now-last.time)/1000:9;
     if(this.motion&&since<.4){const squash=Math.min(1.5,last.power)*(Math.exp(-since*16)*.16+Math.sin(since*38)*Math.exp(-since*9)*.05);c.translate(0,height/2);c.scale(1-squash,1+squash*.45);c.translate(0,-height/2);}
+    this.bagBody(width,height,reinforced);
+    c.restore();
+  }
+  // Smash-style launch, only one at a time and only with motion effects on.
+  ejectBag(now=performance.now(),{reinforced=false,finisher=false}={}){
+    if(this.ejection||!this.motion||!this.intense)return;
+    const hold=finisher?180:110,power=finisher?1.6:1;
+    this.ejection={at:now+hold,reinforced,finisher,vx:(650+450*power)*(this.mobile?.7:1),vy:-(700+350*power),spin:8+5*power};
+    this.holdTime=now;this.holdUntil=now+hold;this.zoomAt=now;this.zoomPower=finisher?.22:.1;
+    this.shakeAt=now+hold;this.shakePower=finisher?24:12;if(finisher)this.flashAt=now+hold;
+  }
+  flyingBag(now,ej,et,x,top,width,height){
+    const c=this.ctx,w=this.width,bx=x+ej.vx*et,by=top+height/2+ej.vy*et+1800*et*et,vy=ej.vy+3600*et;
+    const len=Math.hypot(ej.vx,vy),ux=ej.vx/len,uy=vy/len;
+    c.save();c.strokeStyle='rgba(255,246,220,.7)';c.lineWidth=3;
+    for(const k of [-1.2,-.4,.4,1.2]){const ox=-uy*k*width*.45,oy=ux*k*width*.45;c.beginPath();c.moveTo(bx+ox-ux*width*.6,by+oy-uy*width*.6);c.lineTo(bx+ox-ux*(width*.6+90),by+oy-uy*(width*.6+90));c.stroke();}
+    c.translate(bx,by);c.rotate(ej.spin*et);c.translate(0,-height/2);this.bagBody(width,height,ej.reinforced);c.restore();
+    if(!ej.koAt&&(bx>w+width*.3||by<-width*.3)){ej.koAt=now;ej.koX=Math.min(w-14,bx);ej.koY=Math.max(14,by);this.burst(ej.koX,ej.koY,ej.finisher?'#ffd36b':'#fff6d6',ej.finisher?70:35,now);this.shakeAt=now;this.shakePower=ej.finisher?14:7;}
+  }
+  koStar(now,ej){
+    const p=(now-ej.koAt)/350;if(p<0||p>=1)return;
+    const c=this.ctx,r=(ej.finisher?70:45)*(.6+p*.8);
+    c.save();c.translate(ej.koX,ej.koY);c.rotate(p*.6);c.globalAlpha=1-p;c.fillStyle=ej.finisher?'#ffd36b':'#fff6d6';
+    c.beginPath();for(let i=0;i<16;i++){const a=i*Math.PI/8,rr=i%2?r*.38:r;c.lineTo(Math.cos(a)*rr,Math.sin(a)*rr);}c.closePath();c.fill();c.restore();
+  }
+  bagBody(width,height,reinforced){
+    const c=this.ctx;
     c.fillStyle=reinforced?'#694139':'#35404a';c.beginPath();c.moveTo(-width*.39,0);c.lineTo(width*.35,-2);c.lineTo(width*.5,12);c.lineTo(width*.49,height-13);c.lineTo(width*.3,height);c.lineTo(-width*.32,height);c.lineTo(-width*.5,height-13);c.lineTo(-width*.5,12);c.closePath();c.fill();
     c.fillStyle=reinforced?'#9b6150':'#52616a';c.beginPath();c.moveTo(-width*.39,0);c.lineTo(-width*.06,3);c.lineTo(-width*.13,height-4);c.lineTo(-width*.32,height);c.lineTo(-width*.5,height-13);c.lineTo(-width*.5,12);c.closePath();c.fill();
     c.fillStyle=reinforced?'#432a30':'#242b38';c.beginPath();c.moveTo(width*.35,-2);c.lineTo(width*.5,12);c.lineTo(width*.49,height-13);c.lineTo(width*.3,height);c.lineTo(width*.16,height-7);c.lineTo(width*.23,12);c.closePath();c.fill();
@@ -98,7 +131,6 @@ export class DojoScene {
     c.strokeStyle=reinforced?'#dfb47966':'#bf9a7c55';c.lineWidth=1;c.setLineDash([3,4]);c.beginPath();c.moveTo(width*.14,18);c.lineTo(width*.12,height-12);c.stroke();c.setLineDash([]);
     c.fillStyle='#c5a487';c.font=Math.max(18,width*.34)+'px serif';c.textAlign='center';c.fillText(reinforced?'力':'心',-2,height*.52);
     if(reinforced){c.strokeStyle='#d1ae82';c.lineWidth=2;c.strokeRect(-width*.5-2,height*.15-2,width+4,15);c.strokeRect(-width*.5-2,height*.73-2,width+4,15);}
-    c.restore();
   }
   burst(x,y,color,count,now){
     count=this.motion?(this.intense?count:Math.min(6,count)):0;
@@ -177,6 +209,7 @@ export class DojoScene {
       c.save();c.translate(p.x+p.vx*t,p.y+p.vy*t+90*t*t);c.rotate(p.angle+t*3);c.globalAlpha=fade;c.fillStyle=p.color;
       c.beginPath();c.moveTo(-p.size,0);c.lineTo(p.size*2*fade,0);c.lineTo(0,p.size*.7);c.closePath();c.fill();c.restore();}
     c.restore();
+    if(this.ejection?.koAt)this.koStar(now,this.ejection);
     this.floats=this.floats.filter(f=>now-f.time<800);
     for(const f of this.floats){const p=(now-f.time)/800;if(p<0)continue;c.save();c.globalAlpha=Math.min(1,(1-p)*3);c.fillStyle=f.color;c.shadowColor='#1a0f1c';c.shadowBlur=7;c.textAlign='center';c.font=`700 ${f.large?30:23}px "Space Grotesk",sans-serif`;c.fillText(f.text,f.x,f.y-(this.motion?p*40:0));c.restore();}
   }

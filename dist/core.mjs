@@ -135,6 +135,8 @@ export function rival(stage){
 }
 export function enemyHealth(stage) { return Math.round(90 * Math.pow(1.16, stage - 1)*Math.pow(1.08,Math.max(0,stage-5))*(stage%5===0?3:1)); }
 export function enemyReward(stage) { return (5 + Math.min(stage-1,95)) * (stage%5===0?4:1) / 100; }
+// Coup de grâce: below 30 % health the next note turns gold; a Perfect on it that breaks the bag doubles its reward.
+export function finisherReady(s){return s.hp<=enemyHealth(s.stage)*.3;}
 export function legacyMultiplier(s){return 1+(s.seals||0)*.2;}
 export function attackPower(s) { return (8 + s.upgrades.power * 4)*legacyMultiplier(s)*(1+.15*boon(s,'power')); }
 export function producerMultiplier(level){return 2**MILESTONES.filter(n=>level>=n).length;}
