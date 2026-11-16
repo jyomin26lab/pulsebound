@@ -4,6 +4,9 @@ import { combatLayout, spritePlacement } from './scene-layout.mjs';
 // Combo levels at 8/16/32/64: each one hits harder and shifts colour (orange, gold, cyan, pink, white).
 export const COMBO_COLORS=['#ffc58b','#ffd36b','#7ff0ff','#ff6bd6','#ffffff'];
 export function comboTier(combo){return combo>=64?4:combo>=32?3:combo>=16?2:combo>=8?1:0;}
+// Visual only, never touches coins or damage: flames rise with the combo, a crowd gathers at 50/100/150/200, a miss sends both away.
+export const heatOf=combo=>combo<10?0:Math.min(1,.15+combo/240);
+export const fanCount=combo=>combo>=200?40:combo>=150?20:combo>=100?10:combo>=50?5:0;
 /**
  * Heavy-bag pendulum (radians, rad/s). A hit is an instant push away from the hero; gravity pulls it back,
  * friction slows it, and it bounces softly off the safe limit so it never leaves the frame or hits Nova.
@@ -27,7 +30,7 @@ export class DojoScene {
     this.motion=!matchMedia('(prefers-reduced-motion: reduce)').matches;this.intense=true;
     this.actions={hero:{kind:'idle',time:0},enemy:{kind:'idle',time:0}};
     this.particles=[];this.floats=[];this.shakeAt=-1000;this.shakePower=0;this.holdUntil=0;this.holdTime=0;this.zoomAt=-1000;this.zoomPower=0;this.flashAt=-1000;this.breakAt=-1000;this.rings=[];
-    this.bagStrikes=[];this.swing={angle:0,velocity:0};this.swingAt=0;
+    this.bagStrikes=[];this.swing={angle:0,velocity:0};this.swingAt=0;this.heat=0;this.crowd=new Array(40).fill(0);
     this.resize();new ResizeObserver(()=>this.resize()).observe(canvas);
   }
   resize(){
@@ -178,6 +181,38 @@ export class DojoScene {
       c.stroke();c.restore();
     }
   }
+  // Flames along the bottom edge with a backlit crowd cheering in front of them. Both ease toward the combo's target: slowly up, fast down.
+  fervor(now,combo,beat){
+    const c=this.ctx,w=this.width,h=this.height,dt=Math.min(.1,Math.max(0,(now-(this.fxAt??now))/1000)),live=this.motion?now:0,count=fanCount(combo);this.fxAt=now;
+    const ease=(v,to,up,down)=>!this.motion?to:to>v?Math.min(to,v+up*dt):Math.max(to,v-down*dt);
+    this.heat=ease(this.heat,heatOf(combo),1.2,3);
+    for(let i=0;i<40;i++)this.crowd[i]=ease(this.crowd[i],i<count?1:0,1.5+(i*7%5)*.5,4);
+    if(this.heat>.003){
+      const n=Math.ceil(w/44),top=h*(.06+.3*this.heat),glow=c.createLinearGradient(0,h,0,h-top*1.5),hot=this.heat>.85;
+      c.save();c.globalCompositeOperation='lighter';
+      glow.addColorStop(0,'rgba(255,90,40,'+.45*Math.min(1,this.heat*3)+')');glow.addColorStop(1,'rgba(255,90,40,0)');c.fillStyle=glow;c.fillRect(0,h-top*1.5,w,top*1.5);
+      for(let layer=0;layer<2;layer++){
+        c.fillStyle=layer?(hot?'#bff6ff':'#ffd36b'):'#ff4a1c';c.globalAlpha=(layer?.5:.38)*Math.min(1,this.heat*4);
+        for(let i=0;i<n;i++){
+          const x=(i+.5)*w/n,ww=w/n*(layer?1.5:2.3),hh=top*(layer?.55:1)*(.6+.4*Math.abs(Math.sin(i*1.7+1)))*(.6+.4*Math.sin(live/(170+i%5*30)+i*2.1)),tip=x+Math.sin(live/260+i)*ww*.25;
+          c.beginPath();c.moveTo(x-ww/2,h+4);c.bezierCurveTo(x-ww*.45,h-hh*.4,x-ww*.1+(tip-x)*.5,h-hh*.7,tip,h-hh);c.bezierCurveTo(x+ww*.1+(tip-x)*.5,h-hh*.6,x+ww*.45,h-hh*.35,x+ww/2,h+4);c.fill();
+        }
+      }
+      c.restore();
+    }
+    for(let row=0;row<3;row++)for(let i=row;i<40;i+=3){
+      const a=this.crowd[i];if(a<.01)continue;
+      const s=h*(.15+.02*row)*a,x=w*((i*.618034+.1)%1),feet=h*(.87+.055*row),hop=this.motion?Math.max(0,Math.sin(beat*Math.PI*2+i))*s*.1:0,wave=this.motion?Math.sin(beat*Math.PI*2+i*1.3):0;
+      c.save();c.translate(x,feet-hop);c.fillStyle=c.strokeStyle='#150d19';c.lineCap='round';c.lineWidth=s*.055;
+      for(const side of [-1,1]){
+        c.beginPath();c.moveTo(side*s*.07,-s*.3);c.lineTo(side*s*.1,0);c.moveTo(side*s*.13,-s*.58);c.lineTo(side*s*.3,-s*(.78+.2*(side>0?wave:-wave)));c.stroke();
+      }
+      c.beginPath();c.ellipse(0,-s*.45,s*.13,s*.24,0,0,Math.PI*2);c.moveTo(s*.09,-s*.8);c.arc(0,-s*.8,s*.09,0,Math.PI*2);c.fill();
+      c.strokeStyle='rgba(255,150,70,.6)';c.lineWidth=1.5;c.beginPath();c.arc(0,-s*.8,s*.09,Math.PI*1.1,Math.PI*1.9);c.stroke();
+      c.fillStyle=COMBO_COLORS[1+i%4];c.beginPath();for(const side of [-1,1]){const gy=-s*(.78+.2*(side>0?wave:-wave));c.moveTo(side*s*.3+s*.045,gy);c.arc(side*s*.3,gy,s*.045,0,Math.PI*2);}c.fill();
+      c.restore();
+    }
+  }
   trainees(now,count,beat){
     if(!count)return;const c=this.ctx,w=this.width,h=this.height,n=Math.min(6,count);
     for(let i=0;i<n;i++){
@@ -248,6 +283,7 @@ export class DojoScene {
     if(flow){const glow=c.createRadialGradient(w*.5,h*.7,0,w*.5,h*.7,w*.7);glow.addColorStop(0,'#ffc16c30');glow.addColorStop(1,'#ffc16c00');c.fillStyle=glow;c.fillRect(0,0,w,h);}
     if(playing&&beatPhase<.1&&this.motion){c.fillStyle=`rgba(246,153,75,${(.1-beatPhase)*.2})`;c.fillRect(0,0,w,h);}
     const height=Math.min(h*1.12,w*.84),y=h*.12,poseTime=now<this.holdUntil?this.holdTime:now;
+    if(this.intense)this.fervor(now,combo,playing?musicalBeat:now/500);
     this.bag(now,boss);this.fighter(w*(this.mobile?.18:w<600?.34:.30),this.mobile?h*.34:y,height,'hero',poseTime,preparation,dance,musicalBeat);
     this.effects(now);c.restore();
     // Single short, soft white flash on critical hits only (kept well under photosensitivity thresholds).
