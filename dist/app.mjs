@@ -470,6 +470,8 @@ $$('[data-shop-tab]').forEach((button,index)=>{
 // On phones the page has two tabs (play / dojo) driven by the bottom bar; wide screens ignore data-tab.
 function showTab(tab){document.body.dataset.tab=tab;$$('.mobile-nav [data-tab]').forEach(button=>button.setAttribute('aria-current',String(button.dataset.tab===tab)));}
 $$('.mobile-nav [data-tab]').forEach(button=>button.addEventListener('click',()=>{showTab(button.dataset.tab);scrollTo(0,0);}));
+// The playlist and song settings start folded on phones so the play tab fits on one screen.
+if(matchMedia('(max-width:700px)').matches)$('.session-more').open=false;
 function openDojo(tab='school'){showTab('dojo');selectShopTab(tab);$('#dojo-sidebar').scrollIntoView({behavior:scene.motion?'smooth':'auto',block:'nearest'});}
 $$('[data-dojo-scroll]').forEach(button=>button.addEventListener('click',()=>openDojo()));
 $('#goal-card').addEventListener('click',()=>{const goal=currentGoal(state);if(goal.action==='combat'){if(!audio.playing)play();else toast('Le sac renforcé arrive à la prochaine épreuve.');}else openDojo(goal.action==='legacy'?'legacy':'school');});

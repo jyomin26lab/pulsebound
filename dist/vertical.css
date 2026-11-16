@@ -262,3 +262,39 @@
   body.playing .mobile-nav{display:none}
   body:not([data-tab=dojo]) .dojo-sidebar,body[data-tab=dojo] .session-column,body[data-tab=dojo] .page-heading,.topbar .dojo-button{display:none}
 }
+
+/* Fit each phone tab on one screen: fold the extras, one-line header, smaller shop. */
+.session-more>summary{display:none}
+@media(max-width:700px){
+  .mobile-nav{grid-template-columns:repeat(5,1fr)}
+  .mobile-nav .nav-q{display:grid;place-items:center;width:24px;height:24px;border:2px solid currentColor;border-radius:50%;font:800 14px/1 var(--font)}
+  .topbar{grid-template-columns:auto 1fr;grid-template-rows:auto;gap:8px;min-height:0;padding:calc(6px + env(safe-area-inset-top,0px)) 12px 6px}
+  .topbar .wordmark{font-size:0;grid-column:1;grid-row:1}
+  .topbar .wordmark .brand-icon{margin:0}
+  .topbar .wallet{grid-column:2;grid-row:1;padding:4px 9px}
+  .topbar .wallet strong{font-size:24px}
+  .topbar .header-actions>.icon-button{display:none}
+  .page-heading,.page-footer,.beginner-hint{display:none}
+  .game{padding-top:8px}
+  .session-more>summary{display:block;padding:12px 4px;font:800 12px var(--font);letter-spacing:.5px;cursor:pointer;color:var(--ink)}
+  .session-more[open]>summary{border-bottom:2px solid var(--ink);margin-bottom:10px}
+  .dojo-sidebar>.modal-heading,.dojo-sidebar .dojo-summary,.upgrade-shelf>.shelf-heading,.upgrade-shelf>p,.shop-title,.dojo-sidebar .modal-note{display:none}
+  .dojo-sidebar{padding:12px 12px}
+}
+@media(max-width:700px){
+  .session-menu-heading,.mode-choices small{display:none}
+  .density-choice{flex-direction:row;align-items:center;margin:10px 0}
+  .density-choice select{max-width:62%;width:auto;min-height:40px}
+  .daily-card{margin-bottom:6px}
+  .session-menu{padding-top:12px}
+}
+@media(max-width:700px){
+  .game{padding-bottom:6px}
+  .dojo-layout,.session-column{gap:10px}
+  .session-strip{margin-bottom:0}
+  .density-choice select{max-width:68%}
+}
+@media(max-width:700px){
+  .dojo-sidebar>.secondary-button{display:none}
+  .perk{padding:6px 12px}
+}
