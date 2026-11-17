@@ -30,9 +30,11 @@ export class DojoScene {
     this.motion=!matchMedia('(prefers-reduced-motion: reduce)').matches;this.intense=true;
     this.actions={hero:{kind:'idle',time:0},enemy:{kind:'idle',time:0}};
     this.particles=[];this.floats=[];this.shakeAt=-1000;this.shakePower=0;this.holdUntil=0;this.holdTime=0;this.zoomAt=-1000;this.zoomPower=0;this.flashAt=-1000;this.breakAt=-1000;this.rings=[];
-    this.bagStrikes=[];this.swing={angle:0,velocity:0};this.swingAt=0;this.heat=0;this.crowd=new Array(40).fill(0);
+    this.bagStrikes=[];this.swing={angle:0,velocity:0};this.swingAt=0;this.heat=0;this.crowd=new Array(40).fill(0);this.images={};
     this.resize();new ResizeObserver(()=>this.resize()).observe(canvas);
   }
+  // Lazy, cached pictures (disciples/, crowd/); a missing file simply never loads and the old drawing is used.
+  art(file){return this.images[file]??=Object.assign(new Image(),{src:new URL('./'+file,import.meta.url).href});}
   resize(){
     const rect=this.canvas.getBoundingClientRect(),ratio=Math.min(devicePixelRatio||1,2);
     this.mobile=matchMedia('(max-width:700px)').matches;
@@ -182,7 +184,7 @@ export class DojoScene {
     }
   }
   // Flames along the bottom edge with a backlit crowd cheering in front of them. Both ease toward the combo's target: slowly up, fast down.
-  fervor(now,combo,beat){
+  fervor(now,combo,beat,venue=1){
     const c=this.ctx,w=this.width,h=this.height,dt=Math.min(.1,Math.max(0,(now-(this.fxAt??now))/1000)),live=this.motion?now:0,count=fanCount(combo);this.fxAt=now;
     const ease=(v,to,up,down)=>!this.motion?to:to>v?Math.min(to,v+up*dt):Math.max(to,v-down*dt);
     this.heat=ease(this.heat,heatOf(combo),1.2,3);
@@ -203,6 +205,8 @@ export class DojoScene {
     for(let row=0;row<3;row++)for(let i=row;i<40;i+=3){
       const a=this.crowd[i];if(a<.01)continue;
       const s=h*(.15+.02*row)*a,x=w*((i*.618034+.1)%1),feet=h*(.87+.055*row),hop=this.motion?Math.max(0,Math.sin(beat*Math.PI*2+i))*s*.1:0,wave=this.motion?Math.sin(beat*Math.PI*2+i*1.3):0;
+      const fan=this.art('crowd/'+(venue>=10?'alien':'human')+'-'+(i%3+1)+'-'+(wave>0?'b':'a')+'.webp');
+      if(fan.naturalWidth){c.drawImage(fan,x-s*.5,feet-hop-s*1.25,s*.833,s*1.25);continue;}
       c.save();c.translate(x,feet-hop);c.fillStyle=c.strokeStyle='#150d19';c.lineCap='round';c.lineWidth=s*.055;
       for(const side of [-1,1]){
         c.beginPath();c.moveTo(side*s*.07,-s*.3);c.lineTo(side*s*.1,0);c.moveTo(side*s*.13,-s*.58);c.lineTo(side*s*.3,-s*(.78+.2*(side>0?wave:-wave)));c.stroke();
@@ -213,13 +217,13 @@ export class DojoScene {
       c.restore();
     }
   }
-  trainees(now,count,beat){
+  trainees(now,count,beat,venue=0){
     if(!count)return;const c=this.ctx,w=this.width,h=this.height,n=Math.min(6,count);
     for(let i=0;i<n;i++){
       const stride=this.motion?Math.max(0,1-(now-(this.arrivalAt??-2000))/1100):0;
       const punch=this.motion?Math.max(0,1-((beat+i*.2)%1+1)%1*3):0;
       const x=w*(i===0?.84+stride*.23:i<4?.07+(i-1)*.08:.75+(i-4)*.16);
-      const image=this.apprentice[punch>.32?1:0];
+      const pose=punch>.32?1:0,own=venue?this.art('disciples/'+String(venue).padStart(2,'0')+(pose?'-jab':'-ready')+'.webp'):null,image=own?.naturalWidth?own:this.apprentice[pose];
       if(!image.naturalWidth)continue;
       const height=Math.min(h*.29,w*.18),width=height*image.naturalWidth/image.naturalHeight;
       // The two frames share their rear-foot anchor.
@@ -256,7 +260,7 @@ export class DojoScene {
     this.floats=this.floats.filter(f=>now-f.time<800);
     for(const f of this.floats){const p=(now-f.time)/800;if(p<0)continue;c.save();c.globalAlpha=Math.min(1,(1-p)*3);c.fillStyle=f.color;c.shadowColor='#1a0f1c';c.shadowBlur=7;c.textAlign='center';c.font=`700 ${f.large?30:23}px "Space Grotesk",sans-serif`;c.fillText(f.text,f.x,f.y-(this.motion?p*40:0));c.restore();}
   }
-  render(now,{upcomingMove='punch',arenaVisible=true,lit=false,playing=false,beatPhase=1,preparation=0,dance=false,musicalBeat=0,flow=false,tier=0,disciples=0,boss=false,combo=0,venueArt=''}={}){
+  render(now,{upcomingMove='punch',arenaVisible=true,lit=false,playing=false,beatPhase=1,preparation=0,dance=false,musicalBeat=0,flow=false,tier=0,disciples=0,boss=false,combo=0,venueArt='',venue=1}={}){
     this.preparedMove=upcomingMove;
     const c=this.ctx,w=this.width,h=this.height;c.clearRect(0,0,w,h);c.save();
     if(this.motion&&this.intense){
@@ -276,14 +280,14 @@ export class DojoScene {
     }
     c.fillStyle=boss?'#41172a25':'#130d170e';c.fillRect(0,0,w,h);
     if(arenaVisible && this.welcomeDisciple){this.arrivalAt=now;this.welcomeDisciple=false;}
-    this.details(tier,now);this.trainees(now,disciples,playing?musicalBeat:.5);
+    this.details(tier,now);this.trainees(now,disciples,playing?musicalBeat:.5,venue);
     const comboLevel=comboTier(combo);
     // The edge glow stays while the combo holds, pulsing on the beat, so the run is felt between hits too.
     if(comboLevel&&this.motion&&this.intense){const edge=c.createRadialGradient(w*.5,h*.5,Math.min(w,h)*.35,w*.5,h*.5,Math.max(w,h)*.75),alpha=Math.round(255*Math.min(.5,.1*comboLevel*(1.25-beatPhase*.5))).toString(16).padStart(2,'0');edge.addColorStop(0,COMBO_COLORS[comboLevel]+'00');edge.addColorStop(1,COMBO_COLORS[comboLevel]+alpha);c.fillStyle=edge;c.fillRect(0,0,w,h);}
     if(flow){const glow=c.createRadialGradient(w*.5,h*.7,0,w*.5,h*.7,w*.7);glow.addColorStop(0,'#ffc16c30');glow.addColorStop(1,'#ffc16c00');c.fillStyle=glow;c.fillRect(0,0,w,h);}
     if(playing&&beatPhase<.1&&this.motion){c.fillStyle=`rgba(246,153,75,${(.1-beatPhase)*.2})`;c.fillRect(0,0,w,h);}
     const height=Math.min(h*1.12,w*.84),y=h*.12,poseTime=now<this.holdUntil?this.holdTime:now;
-    if(this.intense)this.fervor(now,combo,playing?musicalBeat:now/500);
+    if(this.intense)this.fervor(now,combo,playing?musicalBeat:now/500,venue);
     this.bag(now,boss);this.fighter(w*(this.mobile?.18:w<600?.34:.30),this.mobile?h*.34:y,height,'hero',poseTime,preparation,dance,musicalBeat);
     this.effects(now);c.restore();
     // Single short, soft white flash on critical hits only (kept well under photosensitivity thresholds).

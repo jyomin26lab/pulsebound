@@ -206,7 +206,7 @@ function renderVenue(){
       const button=document.createElement('button');button.type='button';button.className='perk';button.dataset.item=item.id;
       const name=document.createElement('strong');name.textContent=item.name;
       const text=document.createElement('span');text.textContent=[item.students?'+'+item.students+' élève'+(item.students>1?'s':''):'',item.comfort?'+'+Math.round(item.comfort*100)+' %':''].filter(Boolean).join(' · ');
-      const price=document.createElement('em');button.append(name,text,price);return button;
+      const price=document.createElement('em'),icon=new Image(40,40);icon.src='./items/'+item.id+'.webp';icon.alt='';icon.onerror=()=>icon.remove();button.classList.add('has-icon');button.append(icon,name,text,price);return button;
     }));
   }
   $('#venue-level').textContent=state.venue;$('#venue-name').textContent=v.name;
@@ -720,7 +720,7 @@ function frame(now){
     const nearest=rhythm.nearest(clock),distance=settings.rhythmMode==='tempo'&&nearest?Math.abs(nearest.time-clock):1;
     const disciples=students(state);
     const next=rhythm.next('punch',clock),preparation=!sessionMenuOpen&&audio.playing&&settings.rhythmMode==='tempo'&&next?Math.max(0,1-(next.time-clock)/.16):0;
-    scene.render(now,{venueArt:venueOf(state).art,combo,upcomingMove:next?learnedMove(techniqueFor(next.index),combo+1,state.highestStage,next.index):'punch',arenaVisible:!sessionMenuOpen,lit:state.dojoLit,playing:audio.playing,beatPhase:distance,preparation,dance:danceEnabled&&audio.playing&&!sessionMenuOpen,musicalBeat:beatPosition(audio.conductor?.beats,time,audio.bpm,audio.offset),flow:boost,tier:dojoTier(state),disciples,boss:rival(state.stage).boss});
+    scene.render(now,{venueArt:venueOf(state).art,venue:state.venue,combo,upcomingMove:next?learnedMove(techniqueFor(next.index),combo+1,state.highestStage,next.index):'punch',arenaVisible:!sessionMenuOpen,lit:state.dojoLit,playing:audio.playing,beatPhase:distance,preparation,dance:danceEnabled&&audio.playing&&!sessionMenuOpen,musicalBeat:beatPosition(audio.conductor?.beats,time,audio.bpm,audio.offset),flow:boost,tier:dojoTier(state),disciples,boss:rival(state.stage).boss});
     if(now-lastPaint>=100){updateUI();lastPaint=now;}
   }
   requestAnimationFrame(frame);
