@@ -1,0 +1,174 @@
+/* Colour roles: gold for coins and purchases, turquoise for timing, orange for the dojo and its actions. */
+:root{--timing:#2fb7b2;--timing-ink:#0e3b3a;--band:calc(54px + env(safe-area-inset-top,0px))}
+#coins,#session-coins,#shop-coins,.income-rate,#session-income,#slot-detail,#goal-detail,.perk em,.upgrade-copy em{font-variant-numeric:tabular-nums}
+/* Prices stay in the plain, readable face even where titles are stylised. */
+.perk em,.upgrade-copy em,#slot-detail,#goal-detail{font-family:var(--font);font-style:normal;font-weight:800}
+.upgrade-effect{display:block;margin-top:2px;font:800 11px/1.2 var(--font);color:#2f6f4f}
+
+/* Timing marks in turquoise, each with a shape or symbol as well as a colour. */
+#strike-button::before{border-color:#1f6f6c}
+#strike-button .target-ring{border-color:var(--timing)}
+#strike-button.target-due::before{border:3px solid var(--timing);box-shadow:0 0 0 3px #a9eee9}
+#strike-button .strike-cue{background:var(--timing-ink)}
+.queue-note{border-color:var(--timing)}
+.beat-meter i.lit{background:var(--timing);box-shadow:0 0 8px #2fb7b288}
+#strike-button[data-judge=perfect],#mobile-strike[data-judge=perfect]{--judge:var(--timing)}
+#strike-button.judged[data-judge=perfect]::after{content:"★"}
+
+/* Entry menu: Play and My music side by side; listening stays on the song card. */
+.entry-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 4px}
+.entry-actions>button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;margin:0;padding:8px 10px;border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);color:var(--ink);font:900 italic 21px/1 var(--display)}
+.entry-actions .start-session{width:auto;background:var(--ember,#ed8541)}
+.entry-actions .music-button{background:var(--paper)}
+.entry-actions svg{width:22px;height:22px}
+.dojo-track{display:block;min-height:44px;margin:4px 0;padding:0;background:none;color:var(--ink);font:800 13px var(--font);text-decoration:underline}
+.retry-import{display:inline-flex;align-items:center;min-height:44px;margin:6px 0 0;padding:0 14px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);font:800 13px var(--font);cursor:pointer}
+.retry-import[hidden]{display:none}
+.mode-choices small{display:block!important}
+.playlist-action.listen,.playlist-action.play{font:800 12px var(--font)}
+
+/* Auto strike: its name and its state (OFF / ON / PAUSE) are written, not only coloured. */
+#auto-strike{display:inline-flex;align-items:center;gap:8px}
+#auto-strike b{min-width:3.4em;padding:2px 6px;border:2px solid currentColor;border-radius:6px;font:800 11px var(--font);text-align:center}
+#auto-strike[aria-pressed=true] b{background:var(--timing);border-color:var(--timing-ink);color:var(--timing-ink)}
+
+/* Trophies and notices never land on the strike controls: bottom right on desktop, under the band on phones. */
+@media(min-width:701px){.trophy-popup{left:auto;right:24px;transform:none}}
+
+.band-button,#recruit-slot{display:none}
+@media(max-width:700px){
+  .trophy-popup{top:calc(var(--band) + 8px);bottom:auto}
+  .toast,.toast.visible{top:calc(var(--band) + 8px);bottom:auto}
+  .keys-hint,#strike-button .strike-idle{display:none}
+  .playlist-action{min-width:44px;height:44px;flex-basis:44px}
+
+  /* ---- Phone combat: one screen, no scroll. Band · purchases · stage · lane · controls · pad. ---- */
+  body.in-session{height:var(--app-h,100dvh);overflow:hidden;padding-bottom:0}
+  body.in-session .mobile-nav,body.in-session .player-bar,body.in-session .page-footer,body.in-session .session-strip,
+  body.in-session .topbar .wordmark,body.in-session .save-status,body.in-session .dojo-button{display:none!important}
+  body.in-session .game{padding:0}
+  body.in-session .topbar{position:fixed;inset:0 0 auto;z-index:62;display:flex;align-items:center;height:var(--band);min-height:0;margin:0;
+    padding:env(safe-area-inset-top,0px) max(10px,env(safe-area-inset-right)) 0 max(10px,env(safe-area-inset-left))}
+  body.in-session .header-actions{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+  body.in-session .topbar .wallet{display:grid;grid-template-columns:auto auto 1fr;grid-template-rows:auto auto;column-gap:6px;row-gap:0;align-items:center;
+    flex:1;min-width:0;padding:3px 10px;background:#25454b;border-left:3px solid var(--gold)}
+  body.in-session .topbar .wallet>span:first-child{grid-row:1/3}
+  body.in-session .topbar .wallet>span:first-child,body.in-session .topbar .wallet img{width:28px;height:28px}
+  body.in-session .topbar .wallet strong{font:900 22px/1.05 var(--font);color:var(--gold)}
+  body.in-session .topbar .wallet .wallet-unit{font:800 10px var(--font);text-transform:uppercase;color:var(--paper)}
+  body.in-session .topbar .wallet .income-rate{grid-column:2/4;font:700 12px/1.2 var(--font);color:#d8efe9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body.in-session .band-button{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;border:2px solid #cfe0d4;border-radius:10px;background:#183a3f;color:#fff6dc}
+  body.in-session .band-button svg{width:22px;height:22px}
+
+  body.in-session #battle-card{position:fixed;left:0;right:0;top:var(--band);bottom:0;z-index:5;display:flex;flex-direction:column;margin:0;border:0;border-radius:0;box-shadow:none;background:#1b1517}
+  /* Purchases live at the top, far from the thumb that strikes. */
+  body.in-session #battle-card>.earnings-bar{order:1;display:flex;align-items:center;gap:8px;flex:0 0 auto;min-height:54px;padding:5px max(10px,env(safe-area-inset-right)) 5px max(10px,env(safe-area-inset-left))}
+  body.in-session #battle-card .coin-counter,body.in-session #restart-session{display:none}
+  body.in-session #battle-card .shop-toggle{flex:0 0 auto;min-height:44px}
+  body.in-session #recruit-slot{display:grid;grid-template-columns:1fr;align-content:center;gap:3px;flex:1;min-width:0;min-height:44px;padding:4px 10px;
+    border:2px solid #cdb67a;background:#2a2320;color:#fff1c1;text-align:left;touch-action:manipulation}
+  #recruit-slot .slot-copy,#recruit-slot .slot-track{display:block}
+  #recruit-slot strong,#recruit-slot small{display:block}
+  #recruit-slot strong{color:inherit;font:900 italic 15px/1.1 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #recruit-slot small{font-size:11px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e9dcb7}
+  #recruit-slot .slot-track{height:4px;background:#ffffff22}
+  #recruit-slot .slot-track i{display:block;height:100%;background:var(--gold)}
+  body.in-session #recruit-slot.ready{border:3px solid var(--ink);background:var(--gold);color:var(--ink);box-shadow:3px 3px 0 #0007}
+  #recruit-slot.ready small{color:var(--ink)}
+  body.in-session .combat-layout #strike-button .strike-cue{top:50%;left:calc(100% + 4px);transform:translateY(-50%)}
+  #recruit-slot.ready .slot-track{display:none}
+
+  /* The stage takes every pixel left; the lane runs across under the bag. */
+  body.in-session .combat-layout{order:2;display:flex;flex-direction:column;flex:1 1 auto;min-height:0;height:auto;position:relative}
+  body.in-session .combat-layout #arena{order:1;flex:1 1 auto;min-height:0;height:auto}
+  body.in-session .combat-layout .battle-hud{inset:8px 8px auto}
+  body.in-session .combat-layout .bag-hitbox{left:52%;right:0;width:auto;top:12%;height:80%}
+  body.in-session .combat-layout .combat-feedback{left:50%;top:30%!important;width:70%;font-size:18px}
+  body.in-session .combat-layout .target-pair{order:2;position:relative;inset:auto;flex:0 0 clamp(56px,9dvh,72px);width:100%;height:auto;margin:0;padding:0;
+    border:0;border-block:2px solid #1e6764;border-radius:0;background:linear-gradient(#123538,#0d2729);overflow:hidden}
+  body.in-session .combat-layout #note-runway{height:100%}
+  body.in-session .combat-layout .note-path{left:calc(var(--target) + 8px);right:0;top:50%;bottom:auto;width:auto;height:2px;background:linear-gradient(90deg,var(--timing),#2fb7b222)}
+  body.in-session .combat-layout .note-path::after{inset:-12px 0;background:repeating-linear-gradient(90deg,transparent 0 43px,#2fb7b233 43px 44px)}
+  body.in-session .combat-layout .note-runway .target-lane{top:50%;left:6px;width:auto;transform:translateY(-50%)}
+  body.in-session .combat-layout #strike-button{width:var(--target)!important;height:var(--target)!important}
+  body.in-session .combat-layout #strike-button::before{background:#0e3b3a}
+  body.in-session .combat-layout .queue-note{top:50%;left:0;background:#fff4d6}
+  .note-runway.horizontal .hold-tail{top:50%;left:50%;width:0;height:16px;margin:-8px 0 0;border:3px solid #24474a;border-left:0;border-radius:0 8px 8px 0;background:linear-gradient(90deg,#9fe9e4,var(--timing))}
+  /* Freestyle: no notes to read, only a soft pulse on the beat. */
+  body.in-session.freestyle .combat-layout .target-lane{display:none}
+  body.in-session.freestyle .combat-layout .note-runway{transition:background-color .12s}
+  body.in-session.freestyle .combat-layout .note-runway::after{content:"♪ Frappe libre · suis la musique";position:absolute;inset:0;display:grid;place-items:center;color:#9fe3df;font:800 12px var(--font);letter-spacing:.3px}
+  body.in-session.freestyle .combat-layout .note-runway.beat{background-color:#2fb7b230}
+
+  /* Controls row: combo, Flow charge, auto strike. */
+  body.in-session .rhythm-deck{order:3;display:flex;align-items:center;gap:10px;flex:0 0 auto;min-height:52px;padding:4px max(10px,env(safe-area-inset-right)) 0 max(10px,env(safe-area-inset-left));border:0;background:#1b1517;color:#fff1c1}
+  body.in-session .rhythm-heading,body.in-session .rhythm-deck .combat-controls{display:contents}
+  body.in-session .beat-meter,body.in-session .rhythm-mode-link,body.in-session #timing-text,body.in-session .technique-status,body.in-session .combo-run,
+  body.in-session [data-impact-style],body.in-session #flow-status{display:none!important}
+  body.in-session .rhythm-heading .combo-badge>strong,body.in-session .rhythm-heading .combo-badge>span{color:#fff1c1}
+  body.in-session .flow-panel{flex:1;min-width:0;margin:0!important;width:auto!important;padding:0;border:0;background:none}
+  body.in-session .flow-panel>div:first-child span{font-size:10px;color:#fff1c1}
+  body.in-session .flow-panel img{width:18px;height:18px}
+  body.in-session .rhythm-deck #auto-strike{flex:0 0 auto;width:auto;min-height:44px;padding:0 10px;border:2px solid #cfe0d4;border-radius:10px;background:#183a3f;color:#fff6dc;font:800 11px var(--font)}
+
+  /* The strike pad: wide enough for either thumb, above the home indicator, never moved by anything else. */
+  body.in-session #battle-card #mobile-strike{order:4;flex:0 0 clamp(88px,15dvh,136px);width:auto;min-height:0;
+    margin:6px max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+    border:3px solid var(--ink);border-radius:20px;background:var(--ember,#ed8541);color:var(--ink);box-shadow:0 5px 0 #0008}
+  body.in-session #mobile-strike strong{font:900 italic 32px/1 var(--display)}
+  body.in-session #mobile-strike span{font:800 12px var(--font)}
+  body.in-session #mobile-strike.target-due{background:#ffb27a;box-shadow:inset 0 0 0 5px var(--timing),0 5px 0 #0008}
+  body.in-session #mobile-strike:active{background:#d9692b}
+  /* End-of-song banner floats over the stage, never over the pad. */
+  body.in-session #dojo-reveal{position:absolute;left:10px;right:10px;top:62px;z-index:8}
+
+  /* Shop sheet: under the band, so balance and takings stay in view while buying. */
+  body.shop-open .dojo-sidebar{max-height:calc(var(--app-h,100svh) - var(--band) - 6px)!important}
+}
+@media(max-width:700px) and (max-height:600px){
+  body.in-session #battle-card>.earnings-bar{min-height:50px;padding-block:3px}
+  body.in-session .rhythm-deck{min-height:48px}
+  body.in-session #battle-card #mobile-strike{flex-basis:88px}
+}
+@media(prefers-reduced-motion:reduce){body.in-session.freestyle .combat-layout .note-runway{transition:none}}
+/* A purchase visibly takes the coins from the wallet; a ready recruit on the goal card turns gold. */
+.wallet.spent strong{animation:coin-spent .7s ease-out}
+@keyframes coin-spent{0%{color:#fff;transform:scale(.82)}100%{transform:none}}
+#goal-card.ready{background:var(--gold);color:var(--ink)}
+@media(prefers-reduced-motion:reduce){.wallet.spent strong{animation:none}}
+.shop-recruit{display:grid;gap:3px;width:100%;margin:10px 0 4px;padding:10px 12px;border:3px solid var(--ink);background:var(--gold);color:var(--ink);text-align:left;box-shadow:3px 3px 0 var(--ink);touch-action:manipulation}
+.shop-recruit strong{font:900 italic 19px/1.1 var(--display)}
+.shop-recruit span{font:800 12px/1.3 var(--font);font-variant-numeric:tabular-nums}
+.shop-recruit:disabled{background:#fff4d6;box-shadow:none;cursor:default}
+/* The pad's whole visible shape counts, rounded corners and border included, plus a thin margin around it. */
+@media(max-width:700px){
+  body.in-session #battle-card #mobile-strike{position:relative;border-radius:14px}
+  body.in-session #battle-card #mobile-strike::before{content:"";position:absolute;inset:-6px -13px -3px}
+}
+.playlist-toolbar{scroll-margin-top:calc(var(--band) + 30px)}
+/* Phone playlist: the title gets a full line, the listen / play / move / remove buttons sit under it. */
+@media(max-width:700px){
+  .playlist-list{max-height:min(380px,52vh)}
+  .playlist-row{flex-wrap:wrap;row-gap:4px}
+  .playlist-row .playlist-choose{flex:1 1 calc(100% - 30px);min-width:0}
+  .playlist-row .playlist-action.listen{margin-left:24px}
+  .playlist-row .playlist-action.play{flex:1 1 auto}
+}
+
+/* Particles over the page: sparks from every button (colour by role), coins on purchases, turquoise on perfect timing. */
+.fx-layer{position:fixed;inset:0;z-index:2147483000;pointer-events:none;overflow:hidden}
+.fx-layer i{position:absolute;border-radius:50%;box-shadow:0 0 0 1px #142b3066,0 0 6px currentColor;will-change:transform,opacity}
+.fx-layer i.coin{background:radial-gradient(circle at 35% 30%,#fff6c2 0 18%,#ffcc3c 42%,#b97a10);box-shadow:0 0 0 1px #6b4a0b}
+#mobile-strike,#strike-button,.start-session{--spark:#fff3c4}
+.upgrade,.perk,#venue-expand,#recruit-slot,#goal-card,.shop-recruit,.shop-toggle{--spark:#ffcc3c}
+#auto-strike{--spark:#2fb7b2}
+/* A purchase that is ready glitters: gold motes drift up inside it. */
+#recruit-slot,.shop-recruit{position:relative;isolation:isolate;overflow:hidden}
+@keyframes fx-glint{to{background-position:0 -31px,11px -34px}}
+@media(prefers-reduced-motion:no-preference){
+  body:not(.calm-fx) #goal-card.ready::after,body.in-session:not(.calm-fx) #recruit-slot.ready::after,body:not(.calm-fx) .shop-recruit:not(:disabled)::after{
+    content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
+    background-image:radial-gradient(circle,#fff 0 1.8px,transparent 2.4px),radial-gradient(circle,#fffbe0 0 1.2px,transparent 1.8px);
+    background-size:37px 31px,23px 41px;background-position:0 0,11px 7px;
+    mask-image:linear-gradient(transparent,#000 35%,#000 70%,transparent);animation:fx-glint 2.6s linear infinite}
+}

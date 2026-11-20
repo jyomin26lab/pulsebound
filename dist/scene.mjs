@@ -52,7 +52,7 @@ export class DojoScene {
     this.resize();new ResizeObserver(()=>this.resize()).observe(canvas);
   }
   initState(){
-    this.particles=[];this.floats=[];this.rings=[];this.sparks=[];this.shakeAt=-1000;this.shakePower=0;this.holdUntil=0;this.zoomAt=-1000;this.zoomPower=0;this.flashAt=-1000;this.breakAt=-1000;
+    this.particles=[];this.floats=[];this.rings=[];this.sparks=[];this.embers=[];this.debt={};this.shakeAt=-1000;this.shakePower=0;this.holdUntil=0;this.zoomAt=-1000;this.zoomPower=0;this.flashAt=-1000;this.breakAt=-1000;
     this.bagStrikes=[];this.swing={angle:0,velocity:0};this.lift={y:0,v:0};this.dent=null;this.swingAt=0;this.heat=0;this.crowd=new Array(40).fill(0);
     this.strike=null;this.ghost=null;this.drawn={id:'idle',dx:0,dy:0};this.energy=.5;this.arrivals=[];this.focus=null;
   }
@@ -126,6 +126,8 @@ export class DojoScene {
     if(damage)this.floats.push({text:String(damage),x:x-6,y:y-22,time:now,color:critical?'#ffe4a4':'#fff2de',large:critical});
     this.floats=this.floats.slice(-12);
     if(!this.motion||!this.intense||dodge)return;
+    // Leather dust shaken off the bag drifts down in the lantern light.
+    if(!light)for(let i=0;i<4;i++)this.embers.push({at:now,sway:Math.random()*6.3,x:x+(Math.random()-.2)*this.layout.bagWidth*.5,y:y+(Math.random()-.5)*20,vy:18+Math.random()*30,wobble:4+Math.random()*6,size:.8+Math.random()*1.4,life:.9+Math.random()*.8,color:'#e8d2b0'});
     if(perfect||critical){this.sparks.push({x,y,at:now,size:(critical?1.5:1)*Math.max(18,this.layout.unit*.55),color:critical?'#fff1c4':'#ffe9b8'});this.sparks=this.sparks.slice(-4);}
     if(!light)this.ring(x,y,critical?'#fff1c4':color,(critical?1.4:perfect?.9:.6)*(1+tier*.15),now);
     this.shakeAt=now;this.shakePower=(critical?9:perfect?3.2:light?.6:1.4)*(1+tier*.2)*energy;
@@ -137,6 +139,7 @@ export class DojoScene {
     const L=this.layout,bx=L.bagX,by=this.height*.45;
     // A broken bag shows its reward in big gold digits and freezes the pose a beat longer (hit-stop on the kill).
     if(text){this.floats.push({text,x:bx,y:this.height*.3,time:now,color:'#ffd36b',large:true});this.floats=this.floats.slice(-12);}
+    if(kind!=='flow')this.coinBurst(kind==='victory'?bx:this.width*.5,kind==='victory'?by:this.height*.4,kind==='victory'?(text?10:0):14,now);
     if(kind==='victory'){this.burst(bx,by,'#f9bb7c',30,now);return;}
     this.burst(this.width*.5,this.height*.4,kind==='flow'?'#ffe2a0':'#f9bb7c',kind==='flow'?120:50,now);
     if(this.motion&&this.intense){this.shakeAt=now;this.shakePower=kind==='flow'?14:5;this.zoomAt=now;this.zoomPower=kind==='flow'?.12:.04;this.ring(this.width*.5,this.height*.4,'#ffe2a0',2.2,now);}
@@ -225,6 +228,27 @@ export class DojoScene {
     for(let i=0;i<count;i++){const angle=dir+(Math.random()-.5)*spread,speed=70+Math.random()*360;
       this.particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-40,size:2+Math.random()*5,life:.25+Math.random()*.45,time:now,color,angle});}
     this.particles=this.particles.slice(-500);
+  }
+  // Coins that jump out and fall back spinning (purchases, trophies, broken bags).
+  coinBurst(x,y,count,now){
+    count=this.motion?(this.intense?count:Math.min(3,count)):0;
+    for(let i=0;i<count;i++){const a=-Math.PI/2+(Math.random()-.5)*1.7,s=200+Math.random()*260;
+      this.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,size:3.5+Math.random()*3,life:.8+Math.random()*.5,time:now,color:'#ffcc3c',angle:0,coin:true,spin:7+Math.random()*9});}
+    this.particles=this.particles.slice(-500);
+  }
+  // Rising embers from the flames while the combo burns, a golden swirl around Nova during Flow, and the bag's dust.
+  motes(now,flow){
+    const dt=Math.min(.1,Math.max(0,(now-(this.moteAt??now))/1000)),L=this.layout,w=this.width,h=this.height;this.moteAt=now;
+    if(!this.motion||!this.intense){this.embers.length=0;return;}
+    const emit=(key,rate,make)=>{this.debt[key]=(this.debt[key]||0)+rate*dt;for(;this.debt[key]>=1;this.debt[key]--)this.embers.push({at:now,sway:Math.random()*6.3,...make()});};
+    if(this.heat>.05)emit('fire',this.heat*30,()=>({x:Math.random()*w,y:h,vy:-(50+Math.random()*90)*(.7+this.heat),wobble:6+Math.random()*10,size:.8+Math.random()*2,life:1+Math.random()*1.4,color:this.heat>.85?'#bff6ff':Math.random()<.5?'#ffd36b':'#ff7a3c'}));
+    if(flow&&L?.unit>0)emit('flow',34,()=>({x:L.heroX+(Math.random()-.5)*L.unit*1.8,y:L.bottom-Math.random()*L.unit*.3,vy:-(40+Math.random()*70),wobble:L.unit*(.15+Math.random()*.3),size:1+Math.random()*2.2,life:1.2+Math.random()*.9,color:Math.random()<.7?'#ffe2a0':'#fff6d8'}));
+    this.embers=this.embers.filter(e=>(now-e.at)/1000<e.life).slice(-180);
+    const c=this.ctx;c.save();c.globalCompositeOperation='lighter';
+    for(const e of this.embers){const t=(now-e.at)/1000,k=t/e.life,x=e.x+Math.sin(t*2.6+e.sway)*e.wobble,y=e.y+e.vy*t;
+      c.globalAlpha=Math.sin(Math.PI*k)*.85;c.fillStyle=e.color;c.beginPath();c.arc(x,y,e.size*(1-k*.4),0,Math.PI*2);c.fill();
+      if(e.size>1.8){c.globalAlpha*=.25;c.beginPath();c.arc(x,y,e.size*3,0,Math.PI*2);c.fill();}}
+    c.restore();
   }
   /** Pose and step for the coming note: Nova coils and starts to close the distance so contact lands on it. */
   anticipation(move,preparation){
@@ -346,9 +370,10 @@ export class DojoScene {
     }
     if(this.motion&&this.intense){
       c.save();
-      for(let i=0;i<18;i++){const p=(now/(17000+i*400)+i/18)%1,x=w*((i*.173)%1)+Math.sin(now/3200+i)*15,y=h*(1-p);c.globalAlpha=Math.sin(p*Math.PI)*(.18+(i%3)*.07);c.fillStyle=i%4?'#ffca82':'#f29859';c.beginPath();c.arc(x,y,i%4?1.1:2.1,0,Math.PI*2);c.fill();}
-      // Lantern light follows the song: dim and slow in calm passages, brighter with a soft pulse on the beat when it lifts.
       const pulse=Math.max(0,1-beatPhase*4)*energy;
+      // Dust in the light: more motes as the song lifts (they fade in, never pop), all a little brighter on the beat.
+      for(let i=0;i<36;i++){const show=i<14?1:Math.min(1,Math.max(0,energy*40-i));if(!show)continue;const p=(now/(17000+i*400)+i/36)%1,x=w*((i*.173)%1)+Math.sin(now/3200+i)*15,y=h*(1-p);c.globalAlpha=show*Math.sin(p*Math.PI)*(.18+(i%3)*.07)*(1+pulse*1.5);c.fillStyle=i%4?'#ffca82':'#f29859';c.beginPath();c.arc(x,y,i%4?1.1:2.1,0,Math.PI*2);c.fill();}
+      // Lantern light follows the song: dim and slow in calm passages, brighter with a soft pulse on the beat when it lifts.
       c.globalAlpha=.018+energy*.04+pulse*.03+Math.sin(now/1800)*.006;c.fillStyle='#ffbb65';
       for(const lx of [.08,.89]){c.beginPath();c.moveTo(w*lx,h*.08);c.lineTo(w*(lx+.11),h*.9);c.lineTo(w*(lx-.1),h*.9);c.closePath();c.fill();}
       for(let i=0;i<4;i++){const p=(now/29000+i*.27)%1;c.save();c.translate(w*(1-p),h*(.2+i*.17)+Math.sin(now/2900+i)*12);c.rotate(now/9000+i);c.globalAlpha=.17;c.fillStyle='#df8c50';c.beginPath();c.moveTo(-4,0);c.lineTo(0,-2);c.lineTo(6,0);c.lineTo(0,3);c.closePath();c.fill();c.restore();}c.restore();
@@ -362,6 +387,8 @@ export class DojoScene {
     // Contact star on Parfait and critique: a four-point glint that opens and fades in two or three frames.
     for(const s of this.sparks){const p=(now-s.at)/130,r=s.size*(.6+p*.8),k=r*.16;c.save();c.globalAlpha=1-p;c.fillStyle=s.color;c.translate(s.x,s.y);c.rotate(.2);c.beginPath();c.moveTo(-r,0);c.lineTo(-k,-k);c.lineTo(0,-r*.75);c.lineTo(k,-k);c.lineTo(r,0);c.lineTo(k,k);c.lineTo(0,r*.75);c.lineTo(-k,k);c.closePath();c.fill();c.restore();}
     for(const p of this.particles){const t=(now-p.time)/1000;if(t<0)continue;const fade=1-t/p.life;
+      if(p.coin){const r=p.size;c.save();c.globalCompositeOperation='source-over';c.globalAlpha=Math.min(1,fade*3);c.translate(p.x+p.vx*t,p.y+p.vy*t+620*t*t);c.scale(Math.max(.18,Math.abs(Math.cos(t*p.spin))),1);
+        c.fillStyle='#b97a10';c.beginPath();c.arc(0,0,r,0,Math.PI*2);c.fill();c.fillStyle='#ffcc3c';c.beginPath();c.arc(0,0,r*.76,0,Math.PI*2);c.fill();c.fillStyle='#fff3b0';c.beginPath();c.arc(-r*.25,-r*.28,r*.22,0,Math.PI*2);c.fill();c.restore();continue;}
       c.save();c.translate(p.x+p.vx*t,p.y+p.vy*t+90*t*t);c.rotate(p.angle+t*3);c.globalAlpha=fade;c.fillStyle=p.color;
       c.beginPath();c.moveTo(-p.size,0);c.lineTo(p.size*2*fade,0);c.lineTo(0,p.size*.7);c.closePath();c.fill();c.restore();}
     c.restore();
@@ -396,7 +423,7 @@ export class DojoScene {
     if(playing&&beatPhase<.1&&this.motion){c.fillStyle=`rgba(246,153,75,${(.1-beatPhase)*.25*(.3+this.energy)})`;c.fillRect(0,0,w,h);}
     if(this.intense)this.fervor(now,combo,playing?musicalBeat:now/500,venue);
     this.bag(now,boss);this.fighter(now,{preparation,upcomingMove,dance,musicalBeat});
-    this.effects(now);c.restore();
+    this.motes(now,flow);this.effects(now);c.restore();
     const b=(now-this.breakAt)/350;if(this.motion&&this.intense&&b>=0&&b<1){const edge=c.createRadialGradient(w*.5,h*.5,Math.min(w,h)*.3,w*.5,h*.5,Math.max(w,h)*.75);edge.addColorStop(0,'rgba(216,67,59,0)');edge.addColorStop(1,`rgba(216,67,59,${.55*(1-b)})`);c.fillStyle=edge;c.fillRect(0,0,w,h);}
     // Single short, soft white flash on critical hits only (kept well under photosensitivity thresholds).
     const f=(now-this.flashAt)/110;if(this.motion&&this.intense&&f>=0&&f<1){c.fillStyle=`rgba(255,250,235,${.3*(1-f)})`;c.fillRect(0,0,w,h);}

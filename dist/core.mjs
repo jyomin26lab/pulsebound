@@ -50,6 +50,20 @@ export function sessionPayout(s,grade=null){
   return Math.round(base*comfort(s)*(GRADE_TAKINGS[grade]||1)*legacyMultiplier(s)*(1+.2*boon(s,'income'))*2**(s.dimension||0)*100)/100;
 }
 export function canJump(s){return s.venue===MAX_VENUE&&fullyEquipped(s);}
+// The first students, bought in one go: finish equipping the street, move into the first hall, lay its cheapest student item.
+export function recruitPlan(s){
+  if(students(s)>0||s.venue>2)return null;
+  const steps=[],hall=VENUES[1];let cost=0;
+  if(s.venue===1){for(const item of VENUES[0].items)if(!s.items.includes(item.id)){steps.push({item:item.id});cost+=item.cost;}steps.push({expand:true});cost+=hall.price;}
+  const owned=s.venue===2?s.items:[],first=hall.items.filter(item=>item.students&&!owned.includes(item.id)).sort((a,b)=>a.cost-b.cost)[0];
+  steps.push({item:first.id});cost+=first.cost;
+  return {cost,steps,students:first.students};
+}
+export function recruit(s){
+  const plan=recruitPlan(s);if(!plan||s.coins<plan.cost)return false;
+  for(const step of plan.steps)if(!(step.expand?expand(s):buyItem(s,step.item)))return false;
+  return true;
+}
 // Dimension jump: alien technology opens a new dojo in another dimension. Back to the street, takings ×2 each time.
 export function dimensionJump(s,now=Date.now()){
   if(!canJump(s))return false;

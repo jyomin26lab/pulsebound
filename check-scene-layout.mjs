@@ -49,4 +49,15 @@ for(const [width,height,phone]of [[280,300,true],[296,320,true],[320,380,true],[
     }
   }
 }
+// Particles: embers rise from the flames and around Nova in Flow, stay capped, and vanish with calm effects or reduced motion.
+{
+  const scene=Object.create(DojoScene.prototype);scene.initState();
+  const noop=()=>{};scene.ctx=new Proxy({},{get:()=>noop,set:()=>true});
+  Object.assign(scene,{width:390,height:450,layout:combatLayout(390,450,true),motion:true,intense:true,heat:1});
+  for(let t=0;t<=3000;t+=16)scene.motes(t,true);
+  assert.ok(scene.embers.length>20&&scene.embers.length<=180,'Braises et aura de Flow, plafonnées ('+scene.embers.length+')');
+  scene.coinBurst(100,100,14,3000);assert.equal(scene.particles.filter(p=>p.coin).length,14,'Pluie de pièces');
+  scene.intense=false;scene.motes(3016,true);assert.equal(scene.embers.length,0,'Effets calmes : plus de braises');
+  scene.motion=false;scene.coinBurst(100,100,14,3016);assert.equal(scene.particles.filter(p=>p.coin).length,14,'Mouvement réduit : aucune pièce de plus');
+}
 console.log(placements+' cadrages validés pour 22 sprites, 286 largeurs, 24 hauteurs et deux dispositions ; '+contacts+' contacts poing/pied sur le bord du sac.');

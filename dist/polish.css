@@ -13,12 +13,6 @@
 /* Boutique panel: only a sheet on phones; the desktop keeps the shop on the right. */
 .shop-toggle,.sheet-bar,.shop-backdrop{display:none}
 @media(max-width:700px){
-  /* The note lane hugs the left edge so Nova and the bag share the stage and the strikes connect. */
-  .combat-layout .target-pair{left:6px;left:max(6px,env(safe-area-inset-left))}
-  .combat-layout .bag-hitbox{left:calc(var(--rail) + 14px);width:auto;right:0;top:16%;height:84%}
-  .combat-layout .combo-badge{left:calc(var(--rail) + 16px)}
-  .combat-layout .combat-feedback{left:62%;top:78%!important;width:60%}
-
   #battle-card .shop-toggle{display:inline-flex;align-items:center;justify-self:start;min-height:44px;padding:0 14px;border:2px solid var(--ink);background:var(--gold);color:var(--ink);font:900 italic 15px var(--display);box-shadow:3px 3px 0 #0006}
   #battle-card .shop-toggle.affordable{animation:shop-ready 1.4s ease-in-out infinite alternate}
   @keyframes shop-ready{to{box-shadow:3px 3px 0 #0006,0 0 0 4px #ffd36b88}}

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {freshState,restoreState,VENUES,MAX_VENUE,venueOf,students,comfort,fullyEquipped,buyItem,expandCost,canExpand,expand,sessionPayout,canJump,dimensionJump,canTransmit,prestigeGain,prestige,damageEnemy,enemyHealth,addCoins} from './dist/core.mjs';
+import {freshState,restoreState,VENUES,MAX_VENUE,venueOf,students,comfort,fullyEquipped,buyItem,recruitPlan,recruit,expandCost,canExpand,expand,sessionPayout,canJump,dimensionJump,canTransmit,prestigeGain,prestige,damageEnemy,enemyHealth,addCoins} from './dist/core.mjs';
 // The ladder: 17 venues, each pricier than the last, equipment always cheaper as a whole than the next venue is out of reach.
 assert.equal(VENUES.length,17);assert.equal(MAX_VENUE,17);assert.equal(VENUES[0].name,'La Rue');assert.equal(VENUES[9].name,'Rue alien');
 for(let i=1;i<VENUES.length;i++)assert.ok(VENUES[i].price>VENUES[i-1].price,'Chaque dojo coûte plus cher que le précédent');
@@ -33,4 +33,8 @@ const saved=restoreState(JSON.parse(JSON.stringify({...d,venue:2,items:['mats','
 assert.equal(saved.venue,2);assert.deepEqual(saved.items,['mats']);assert.equal(saved.fans,42);assert.equal(saved.dimension,1);
 const bad=restoreState({version:1,venue:99,items:'x',fans:-5,dimension:1.5});assert.equal(bad.venue,17);assert.deepEqual(bad.items,[]);assert.equal(bad.fans,0);assert.equal(bad.dimension,0);
 addCoins(d,NaN);assert.ok(Number.isFinite(d.coins));
-console.log('Dojos : 17 niveaux, fans, équipements, agrandissement, recette de séance, transmission 2-7, saut de dimension et sauvegarde vérifiés.');
+// First students in one tap: the real path costs 39 coins from a fresh save (3 + 6 + 25 + 5), never half-bought.
+{const r=freshState();assert.equal(recruitPlan(r).cost,39);assert.equal(recruitPlan(r).students,2);r.coins=38.99;assert.equal(recruit(r),false);assert.equal(r.venue,1);assert.deepEqual(r.items,[]);
+r.coins=40;assert.equal(recruit(r),true);assert.equal(r.venue,2);assert.equal(students(r),2);assert.ok(Math.abs(r.coins-1)<1e-9);assert.equal(recruitPlan(r),null);assert.equal(recruit(r),false);
+const h=freshState();h.venue=2;h.items=[];h.coins=5;assert.equal(recruitPlan(h).cost,5);assert.equal(recruit(h),true);assert.equal(students(h),2);}
+console.log('Dojos : 17 niveaux, fans, équipements, agrandissement, premier recrutement à 39 pièces, recette de séance, transmission 2-7, saut de dimension et sauvegarde vérifiés.');

@@ -28,15 +28,15 @@ const extent = side => Math.max(...GUARD.map(id => {
 }));
 export const GUARD_FRONT = extent(1), GUARD_BACK = extent(-1);
 
-/** On phones the note lane overlays the left edge of the stage, so Nova stands to its right. */
+/** On phones the note lane sits under the stage: Nova and the bag get the whole width and height, framed on the contact. */
 export function combatLayout(width, height, phone = false) {
   const margin = Math.max(8, Math.min(18, width * .025));
-  const left = (phone ? 82 : 0) + margin;
+  const left = margin;
   const right = width - margin;
-  const top = Math.max(64, height * .2);
-  const bottom = height - Math.max(24, height * .12);
-  const bagWidth = Math.max(36, Math.min(100, width * (phone ? .15 : .145)));
-  const bagX = width * (phone ? .83 : .74);
+  const top = phone ? Math.max(40, height * .12) : Math.max(64, height * .2);
+  const bottom = height - (phone ? Math.max(12, height * .05) : Math.max(24, height * .12));
+  const bagWidth = Math.max(36, Math.min(100, width * (phone ? .16 : .145)));
+  const bagX = width * (phone ? .8 : .74);
   const unitH = Math.max(0, bottom - top) / (HERO_ENVELOPE.bottom - HERO_ENVELOPE.top);
   const unitW = Math.max(0, bagX - bagWidth / 2 - left) / (GUARD_FRONT + GUARD_BACK + .2);
   const unit = Math.min(unitH, unitW);
