@@ -235,25 +235,26 @@ export class Soundtrack {
     }
   }
   async previewImpact(){await this.init();this.playImpact(false);}
-  hit(grade,critical=false,combo=0) {
+  hit(grade,critical=false,combo=0,{weight=1,energy=.5}={}) {
     if (!this.ctx || !this.playing || !this.sfx) return;
-    this.playImpact(critical,grade==='perfect',combo);
+    this.playImpact(critical,grade==='perfect',combo,{weight,energy});
   }
-  playImpact(critical=false,perfect=false,combo=0) {
+  /** weight: 0.75 for a jab up to 1.4 for a spinning kick (lower, fuller); energy: the song's local energy, so calm passages get softer hits. */
+  playImpact(critical=false,perfect=false,combo=0,{weight=1,energy=.5}={}) {
     if (!this.ctx || this.ctx.state!=='running') return;
     if(this.voices.size>=12){const oldest=this.voices.values().next().value;try{oldest.stop();}catch{}this.voices.delete(oldest);}
     const now=this.ctx.currentTime,tier=comboTier(combo);
     const source=this.ctx.createBufferSource();source.buffer=this.impactBanks[this.impactStyle][(perfect?6:0)+(critical?3:0)+(this.impactVariant++%3)];
-    if(source.playbackRate)source.playbackRate.value=1+(Math.random()-.5)*.07+tier*.025;// the impact climbs in pitch as the combo grows
-    const boost=this.ctx.createGain();boost.gain.value=critical?1.7:perfect?1.55:1.3;let out=boost;
+    if(source.playbackRate)source.playbackRate.value=(1.09-.12*weight)*(1+(Math.random()-.5)*.06)+tier*.025;// lighter strikes sound higher; the impact climbs in pitch as the combo grows
+    const level=(.8+.3*energy)*(.88+.12*weight),boost=this.ctx.createGain();boost.gain.value=(critical?1.7:perfect?1.55:1.3)*level;let out=boost;
     if(this.ctx.createStereoPanner){const pan=this.ctx.createStereoPanner();pan.pan.value=(Math.random()-.5)*.36;boost.connect(pan).connect(this.effectsGain);}else boost.connect(this.effectsGain);
     source.connect(out);source.onended=()=>{source.disconnect();boost.disconnect();this.voices.delete(source);};this.voices.add(source);source.start();
     // Slap in the 2-5 kHz range: the part of a hit that no song's kick or bass masks, so it cuts through.
-    this.crack(now,perfect?.55:.35,'bandpass',perfect?3600:2800,.035);
+    this.crack(now,(perfect?.55:.35)*level,'bandpass',perfect?3600:2800,.035);
     // Kick-like thump under every hit, heavier with the combo.
-    const thump=this.tone(now,critical?110:150,critical?.32:.18,'sine',(critical?.65:.38)*(1+tier*.2),this.effectsGain);thump.frequency.exponentialRampToValueAtTime(40,now+(critical?.26:.13));
+    const thump=this.tone(now,(critical?110:150)*(1.15-.2*weight),critical?.32:.18,'sine',(critical?.65:.38)*(1+tier*.2)*level*(.8+.25*weight),this.effectsGain);thump.frequency.exponentialRampToValueAtTime(40,now+(critical?.26:.13));
     // Duck the music for a split second so the hit owns that instant, then let it swell back.
-    const duck=this.duck.gain;duck.cancelScheduledValues(now);duck.setValueAtTime(duck.value,now);duck.linearRampToValueAtTime(critical?.4:.6,now+.008);duck.setTargetAtTime(1,now+.03,.07);
+    const duck=this.duck.gain;duck.cancelScheduledValues(now);duck.setValueAtTime(duck.value,now);duck.linearRampToValueAtTime(critical?.5:perfect?.72:.8,now+.008);duck.setTargetAtTime(1,now+.03,.07);
     if(critical)this.accent(now,.55);
   }
   crack(time,level,type,frequency,duration){

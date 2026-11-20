@@ -1,11 +1,11 @@
 import { judgePlayable } from './input-timing.mjs';
 import { DeviceCalibration } from './device-calibration.mjs';
-import { SAVE_KEY, freshState, restoreState, enemyHealth, enemyReward, attackPower, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, ACHIEVEMENTS, VENUES, MAX_VENUE, venueOf, students, comfort, fullyEquipped, buyItem, expandCost, canExpand, expand, sessionPayout, canJump, dimensionJump, canTransmit, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade, dailyChallenge, challengeMet, completeChallenge, dailyStreak, BOONS, boon, boonChoices, applyBoon, finisherReady, PERKS, perk, perkCost, buyPerk, sealsAvailable } from './core.mjs';
+import { SAVE_KEY, freshState, restoreState, enemyHealth, enemyReward, attackPower, upgradeCost, buyUpgrade, damageEnemy, hitDamage, addCoins, ACHIEVEMENTS, VENUES, MAX_VENUE, venueOf, students, comfort, fullyEquipped, buyItem, expandCost, canExpand, expand, sessionPayout, canJump, dimensionJump, canTransmit, rival, dojoTier, currentGoal, claimAchievements, prestige, prestigeGain, legacyMultiplier, songGrade, recordGrade, dailyChallenge, challengeMet, completeChallenge, dailyStreak, BOONS, boon, boonChoices, applyBoon, finisherReady, PERKS, perk, perkCost, buyPerk, sealsAvailable, recruitPlan, recruit } from './core.mjs';
 import { FlowMeter } from './flow.mjs';
 import { MusicLibrary } from './music-library.mjs';
 import { freestyleInterval, IMPACT_STYLES } from './audio-sfx.mjs';
 import { Soundtrack, TRACKS } from './audio.mjs';
-import { DojoScene } from './scene.mjs';
+import { DojoScene, MOVES } from './scene.mjs';
 import { RhythmMap, demoMap } from './rhythm.mjs';
 import { createSongChart, songSettings, ANALYSIS_VERSION } from './song-chart.mjs';
 import { analyzeSong } from './analyze-song.mjs';
@@ -47,7 +47,7 @@ let combo=0,perfectRun=0,lastBreakAt=0,holding=null,lastInput=-Infinity,toastTim
 const flow=new FlowMeter();
 let transportBusy=false,importedTitle='',lastPaint=0,lastFrame=performance.now();
 let importController=null;
-let autoEnabled=false,armedTechnique=null,danceEnabled=true;
+let autoEnabled=false,armedTechnique=null,danceEnabled=true,energy=.35,lastEnergyAt=performance.now();
 const autoStriker=new AutoStriker();
 let taps=[],lastExpired=-1;
 let beatDisplayBound=false,lastBeatPulse=null;
@@ -55,7 +55,8 @@ const resolved=new Set();
 const queueNodes=new Map();
 const audio=new Soundtrack(handleTransport);
 audio.impactStyle=settings.impactStyle;audio.select(settings.trackId);audio.setVolume(settings.volume/100);audio.metronome=settings.metronome;audio.sfx=settings.sfx;audio.setSfxVolume(settings.sfxVolume/100);
-const scene=new DojoScene($('#fight-canvas'));scene.intense=settings.intense;
+const scene=new DojoScene($('#fight-canvas'));scene.intense=settings.intense;document.body.classList.toggle('calm-fx',!settings.intense);
+const fxLayer=document.body.appendChild(Object.assign(document.createElement('div'),{className:'fx-layer'}));fxLayer.setAttribute('aria-hidden','true');
 let rhythm=demoMap(audio.trackId,audio.bpm,audio.offset,settings.rhythmMode);
 function rebuildRhythm(){
   const track=library.current;
@@ -87,12 +88,13 @@ function resetCombo(){
   lastExpired=rhythm.lowerBound(clock)-1;
   if(nearest&&clock<=nearest.time+rhythm.windows(nearest,state.upgrades.focus).good)lastExpired=nearest.index-1;
 }
-function transportLabel(){return autoEnabled?(audio.playing?'AUTO · SYNCHRO':'AUTO EN PAUSE'):settings.rhythmMode==='freestyle'?'FRAPPE LIBRE':audio.playing?'SUIS LA PULSATION':'À TON RYTHME';}
+function transportLabel(){return autoEnabled?(audio.playing?'FRAPPE AUTO · SYNCHRO':'FRAPPE AUTO EN PAUSE'):settings.rhythmMode==='freestyle'?'FRAPPE LIBRE':audio.playing?'SUIS LA PULSATION':'À TON RYTHME';}
 function syncTransport(){
   document.body.classList.toggle('playing',audio.playing);
   const button=$('#play-button');button.classList.toggle('playing',audio.playing);
   button.setAttribute('aria-label',audio.playing?'Mettre la musique en pause':'Lancer la musique');
   button.querySelector('use').setAttribute('href',audio.playing?'#i-pause':'#i-play');
+  const pause=$('#pause-button');pause.setAttribute('aria-label',audio.playing?'Mettre en pause':'Reprendre la musique');pause.querySelector('use').setAttribute('href',audio.playing?'#i-pause':'#i-play');
   $('#timing-text').textContent=transportLabel();
   if(!audio.playing)resetCombo();
   updateUI();
@@ -125,6 +127,10 @@ async function play(){
 }
 $('#play-button').addEventListener('click',()=>sessionMenuOpen?previewTrack():audio.playing?audio.pause():play());
 $('#preview-track').addEventListener('click',previewTrack);
+$('#pause-button').addEventListener('click',()=>audio.playing?audio.pause():play());
+// Entry menu: My music opens the playlist; a custom song can always hand back to the dojo's own track.
+$('#open-music').addEventListener('click',()=>{$('.session-more').open=true;$('#audio-upload').focus({preventScroll:true});$('.playlist-toolbar').scrollIntoView({block:'start'});});
+$('#dojo-track').addEventListener('click',async()=>{const id=library.order.find(id=>library.all.get(id)?.builtin)||'neon';if(!library.order.includes(id))await library.addOriginal(id);await chooseTrack(id);});
 async function previewTrack(){
   if(transportBusy||trackLoading||importing||!libraryLoaded)return;transportBusy=true;updateUI();
   try{if(audio.playing)audio.pause();else{await audio.init();await ensureTrack();await audio.play();}}catch(error){toast(error.message);}finally{transportBusy=false;syncTransport();}
@@ -134,7 +140,7 @@ $('#start-button').addEventListener('click',play);
 $('#mobile-start-button').addEventListener('click',play);
 function setTrackUI(){
   const track=library.current;
-  $('#track-title').textContent=track?.title||'Session sans musique';
+  $('#track-title').textContent=track?.title||'Session sans musique';$('#dojo-track').hidden=!track||track.builtin;
   $('#preview-title').textContent=track?.title||'Session sans musique';$('#preview-meta').textContent=track?Math.floor(track.duration/60)+':'+String(Math.floor(track.duration%60)).padStart(2,'0')+' · '+(track.builtin?'Original du dojo':'Ton morceau'):'Ajoute ton son ou joue sans musique.';
   $('#track-subtitle').textContent=track?(library.order.indexOf(track.id)+1)+' / '+library.items.length+' · '+(track.builtin?'ORIGINAL DU DOJO':'TA PLAYLIST'):'AJOUTE UN SON OU JOUE LIBREMENT';
   const bpm=loadedId===(track?.id||'silent')?audio.bpm:track?.bpm||120;
@@ -198,6 +204,45 @@ function drawBoons(){
 $('#boon-reroll').addEventListener('click',()=>{$('#boon-reroll').hidden=true;drawBoons();$('#boon-choices .boon-choice').focus();});
 // "Mon dojo": equipment of the current venue (rebuilt when the venue changes), then expand or jump dimension.
 let renderedVenue=0;
+// What a purchase is worth, in the words of the dojo: students and takings per session (they grow with the fans).
+function itemGain(item){state.items.push(item.id);const after=sessionPayout(state);state.items.pop();return after-sessionPayout(state);}
+function itemBenefit(item){
+  const gain=itemGain(item),who=item.students?'+'+item.students+' élève'+(item.students>1?'s':''):'';
+  return [who,gain>=.01?'+'+format(gain)+' pièce'+(gain>=2?'s':'')+' / séance':item.comfort?'+'+Math.round(item.comfort*100)+' % de recette':''].filter(Boolean).join(' · ');
+}
+// One touch, one action: a purchase needs a calm finger (no strike in the last 450 ms), a button ready for 400 ms
+// when it has just appeared, and 500 ms since the previous purchase, so a fast double tap never buys twice.
+let buyLockUntil=0,lastHumanStrike=-Infinity,readySince=0,goalReady=false;
+function purchaseAllowed(fresh=false){const now=performance.now();if(now<buyLockUntil||now-lastHumanStrike<450||fresh&&now-readySince<400)return false;buyLockUntil=now+500;return true;}
+// First students: the panel closes, the wallet drops, the takings jump and the newcomers walk in on the same frame.
+function welcomeStudents(count,before,from){
+  const after=sessionPayout(state);if(after>before)flashIncome(before,after);
+  spend(from);setShop(false);showMoment('TES PREMIERS ÉLÈVES','+'+count+' ÉLÈVES','Ils paient leur cours à chaque fin de morceau.','flow');audio.cue('milestone');
+  pulse($('.wallet'),'spent');scene.celebrate('purchase');award();updateUI();save();
+}
+function recruitGain(){const copy=structuredClone(state);copy.coins=Infinity;recruit(copy);return sessionPayout(copy)-sessionPayout(state);}
+// The goal card (menu, desktop) and the arena slot (phone) show the same thing: coins missing for the first students,
+// then a recruit button with its real price and gain; after that, the next piece of equipment.
+function renderGoal(){
+  const plan=recruitPlan(state);let label,detail,progress,ready=false;
+  if(plan){
+    const missing=plan.cost-state.coins,gain='+'+format(recruitGain())+' pièces / séance';ready=missing<=0;
+    label=ready?'Recruter · +'+plan.students+' élèves':'Premiers élèves';
+    detail=ready?format(plan.cost)+' pièces · '+gain:'Encore '+format(Math.max(.01,missing))+' pièce'+(missing>=2?'s':'')+' · '+gain;progress=state.coins/plan.cost;
+  }else{
+    const goal=currentGoal(state),goalItem=venueOf(state).items.find(item=>item.name===goal.label),why=goalItem?itemBenefit(goalItem):'';
+    label=goal.label;detail=format(Math.min(goal.current,goal.target))+' / '+format(goal.target)+' pièces'+(why?' · '+why:'');progress=goal.current/goal.target;
+  }
+  if(ready&&!goalReady)readySince=performance.now();goalReady=ready;
+  $('#goal-label').textContent=label;$('#goal-detail').textContent=detail;$('#slot-label').textContent=label;$('#slot-detail').textContent=detail;
+  for(const bar of [$('#goal-progress'),$('#slot-progress')])bar.style.width=Math.min(100,progress*100)+'%';
+  for(const card of [$('#goal-card'),$('#recruit-slot')])card.classList.toggle('ready',ready);
+  // The shop offers the same recruit at the top of the dojo tab while the school has no students yet.
+  $('#shop-recruit').hidden=!plan;$('#shop-recruit').disabled=!ready;$('#shop-recruit-label').textContent=label;$('#shop-recruit-detail').textContent=detail;
+}
+// The takings line shows the jump (0 → 1,2) for a moment after a purchase raises it.
+let incomeFlash=null;
+function flashIncome(from,to){incomeFlash={from,to,until:performance.now()+2600};for(const element of [$('#income-rate'),$('#battle-card .coin-counter small')])pulse(element,'income-up');}
 function renderVenue(){
   const v=venueOf(state);
   if(renderedVenue!==state.venue){
@@ -205,7 +250,7 @@ function renderVenue(){
     $('#venue-items').replaceChildren(...v.items.map(item=>{
       const button=document.createElement('button');button.type='button';button.className='perk';button.dataset.item=item.id;
       const name=document.createElement('strong');name.textContent=item.name;
-      const text=document.createElement('span');text.textContent=[item.students?'+'+item.students+' élève'+(item.students>1?'s':''):'',item.comfort?'+'+Math.round(item.comfort*100)+' %':''].filter(Boolean).join(' · ');
+      const text=document.createElement('span');text.className='perk-gain';
       const price=document.createElement('em'),icon=new Image(40,40);icon.src='./items/'+item.id+'.webp';icon.alt='';icon.onerror=()=>icon.remove();button.classList.add('has-icon');button.append(icon,name,text,price);return button;
     }));
   }
@@ -214,17 +259,25 @@ function renderVenue(){
   $$('#venue-items .perk').forEach(button=>{
     const item=v.items.find(entry=>entry.id===button.dataset.item),owned=state.items.includes(item.id);
     button.disabled=owned||state.coins<item.cost;button.classList.toggle('owned',owned);
-    button.querySelector('em').textContent=owned?'✓':format(item.cost);
+    button.querySelector('em').textContent=owned?'✓':format(item.cost)+' pièce'+(item.cost>=2?'s':'');
+    button.querySelector('span').textContent=owned?'Installé':itemBenefit(item);
   });
   const next=VENUES[state.venue],expandButton=$('#venue-expand');
   expandButton.disabled=!(canExpand(state)||canJump(state));
   expandButton.textContent=canJump(state)?'Saut de dimension ↗':!next?'Dernier dojo':'Agrandir → '+next.name+' · '+format(expandCost(state));
 }
 $('#venue-items').addEventListener('click',event=>{
-  const id=event.target.closest('[data-item]')?.dataset.item,item=venueOf(state).items.find(entry=>entry.id===id);if(!item||!buyItem(state,id))return;
-  toast('Installé · '+item.name);scene.celebrate('purchase');audio.cue('purchase');award();updateUI();save();
+  const id=event.target.closest('[data-item]')?.dataset.item,item=venueOf(state).items.find(entry=>entry.id===id),before=sessionPayout(state),hadStudents=students(state)>0;
+  if(!item||state.items.includes(id)||state.coins<item.cost||!purchaseAllowed()||!buyItem(state,id))return;
+  // The very first students get their moment: the panel closes so they can be seen walking in.
+  const button=event.target.closest('[data-item]');
+  if(item.students&&!hadStudents&&state.venue===2){welcomeStudents(item.students,before,button);return;}
+  const after=sessionPayout(state);if(after>before)flashIncome(before,after);spend(button);
+  toast('Installé · '+item.name+(item.students?' · +'+item.students+' élève'+(item.students>1?'s':''):''));audio.cue('purchase');
+  scene.celebrate('purchase');award();updateUI();save();
 });
 $('#venue-expand').addEventListener('click',()=>{
+  if(!(canExpand(state)||canJump(state))||!purchaseAllowed())return;
   if(canJump(state)){
     if(!confirm('Saut de dimension : tu repars de la Rue avec des recettes ×2 pour toujours. Pièces, dojo, fans, techniques et dons repartent à zéro ; sceaux, boutique de sceaux, trophées et notes sont gardés. Sauter ?'))return;
     dimensionJump(state);flow.reset();resolved.clear();lastActionSongTime=-1;resetCombo();
@@ -233,7 +286,7 @@ $('#venue-expand').addEventListener('click',()=>{
     if(!expand(state))return;
     showMoment('NOUVEAU DOJO',venueOf(state).name.toUpperCase(),'Il est vide : équipe-le pour attirer des élèves.','flow');
   }
-  scene.celebrate('flow');audio.cue('milestone');award();updateUI();save();
+  spend($('#venue-expand'));scene.celebrate('flow');audio.cue('milestone');award();updateUI();save();
 });
 // Seal shop buttons are built once; updateUI only refreshes their text and state.
 $('#perk-list').append(...Object.entries(PERKS).map(([id,p])=>{
@@ -243,7 +296,7 @@ $('#perk-list').append(...Object.entries(PERKS).map(([id,p])=>{
 }));
 $('#perk-list').addEventListener('click',event=>{
   const id=event.target.closest('[data-perk]')?.dataset.perk;if(!id||!buyPerk(state,id))return;
-  save();updateUI();toast('Acquis pour toujours · '+PERKS[id].label);scene.celebrate('purchase');audio.cue('milestone');
+  spend(event.target.closest('[data-perk]'));save();updateUI();toast('Acquis pour toujours · '+PERKS[id].label);scene.celebrate('purchase');audio.cue('milestone');
 });
 function renderPerks(){
   $('#perk-seals').textContent=format(sealsAvailable(state));
@@ -285,13 +338,15 @@ function updateUI(){
   $('#cancel-audio-import').hidden=!importing;
   $('#preview-track').disabled=$('#play-button').disabled;$('#preview-track').textContent=sessionMenuOpen&&audio.playing?'Ⅱ PAUSE':'▶ ÉCOUTER';
   document.body.classList.toggle('auto-striking',autoEnabled);
-  $('#auto-strike').setAttribute('aria-pressed',String(autoEnabled));$('#auto-strike span').textContent=autoEnabled?(audio.playing?'AUTO ON':'AUTO PAUSE'):'AUTO OFF';
+  for(const button of $$('#playlist-list .playlist-action.listen'))button.textContent=sessionMenuOpen&&audio.playing&&button.closest('[data-track-id]').dataset.trackId===library.selected?'Ⅱ':'▶';
+  $('#auto-strike').setAttribute('aria-pressed',String(autoEnabled));$('#auto-strike b').textContent=autoEnabled?(audio.playing?'ON':'PAUSE'):'OFF';
   $$('[data-impact-style]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.impactStyle===settings.impactStyle)));
   $('#technique-status').textContent='SON · '+IMPACT_STYLES[settings.impactStyle].label;
   $('#previous-track').disabled=!libraryLoaded||trackLoading||importing||!library.next(-1);$('#next-track').disabled=!libraryLoaded||trackLoading||importing||!library.next(1);
-  const boost=flow.active&&audio.playing,opponent=rival(state.stage),goal=currentGoal(state),income=sessionPayout(state);
+  const boost=flow.active&&audio.playing,opponent=rival(state.stage),income=sessionPayout(state);
   $('#coins').textContent=format(state.coins);$('#shop-coins').textContent=format(state.coins);$('#session-coins').textContent=format(state.coins);
-  $('#income-rate').textContent='par séance : '+format(income);$('#session-income').textContent=format(income);
+  const jump=incomeFlash&&performance.now()<incomeFlash.until?format(incomeFlash.from)+' → '+format(incomeFlash.to):null;
+  $('#income-rate').textContent='par séance : '+(jump||format(income));$('#session-income').textContent=jump||format(income);
   for(const unit of $$('.coin-unit'))unit.textContent=state.coins<2?'pièce':'pièces';$('#auto-stat').textContent=format(income);$('#school-dps').textContent=format(income);
   $('#power-stat').textContent=format(attackPower(state)*(boost?2.5:1));
   $('#combo-count').innerHTML=combo+'<span>×</span>';
@@ -304,8 +359,7 @@ function updateUI(){
   const count=students(state);
   $('#school-count').textContent=count;$('#school-count-label').textContent=count>1?'élèves':'élève';
   $('#school-title').textContent=venueOf(state).name.toUpperCase();renderVenue();
-  $('#goal-label').textContent=goal.label;$('#goal-detail').textContent=format(Math.min(goal.current,goal.target))+' / '+format(goal.target);
-  $('#goal-progress').style.width=Math.min(100,goal.current/goal.target*100)+'%';
+  renderGoal();
   document.body.classList.toggle('flowing',boost);document.body.classList.toggle('flow-ready',flow.armed);
   const charge=flow.active?flow.remaining/32*100:flow.charge;
   $('#flow-fill').style.width=charge+'%';$('.flow-track').setAttribute('aria-valuenow',Math.round(charge));
@@ -315,15 +369,16 @@ function updateUI(){
     const key=button.dataset.upgrade,cost=upgradeCost(state,key),level=state.upgrades[key];
     button.disabled=state.coins<cost||!Number.isFinite(cost);button.classList.toggle('affordable',!button.disabled);
     if(!button.disabled)affordable=true;
-    button.querySelector('small b').textContent=level;button.querySelector('em span').textContent=Number.isFinite(cost)?format(cost):'MAX';
+    button.querySelector('small b').textContent=level;button.querySelector('.upgrade-effect').textContent=Number.isFinite(cost)?upgradeEffect(key):'Maximum';button.querySelector('em span').textContent=Number.isFinite(cost)?format(cost):'MAX';
     button.setAttribute('aria-label',button.querySelector('strong').firstChild.textContent.trim()+', '+level+', '+(Number.isFinite(cost)?format(cost)+' pièces':'maximum'));
   });
-  $('.dojo-button').dataset.affordable=affordable||venueOf(state).items.some(item=>!state.items.includes(item.id)&&state.coins>=item.cost)||canExpand(state)||canJump(state);
+  $('.dojo-button').dataset.affordable=affordable||venueOf(state).items.some(item=>!state.items.includes(item.id)&&state.coins>=item.cost)||canExpand(state)||canJump(state);$('#battle-card .shop-toggle').classList.toggle('affordable',$('.dojo-button').dataset.affordable==='true');
   renderPerks();$('#legacy-seals').textContent=format(state.seals);$('#legacy-bonus').textContent='+'+format(Math.round((legacyMultiplier(state)-1)*100))+' %';
   const gain=prestigeGain(state);$('#legacy-gain').textContent='+'+gain+' sceau'+(gain>1?'x':'');$('#prepare-prestige').disabled=gain<1;
   $('#legacy-requirement').textContent=state.venue<2?'Achète d’abord une salle.':!canTransmit(state)?'Trop célèbre pour transmettre : vise le saut de dimension.':gain>0?'Prêt à transmettre.':format(state.runCoins)+' / 12 000';
   if($('#stats-dialog').open)updateStats();
 }
+const upgradeEffect=key=>key==='power'?'+'+format(4*legacyMultiplier(state)*(1+.15*boon(state,'power')))+' dégâts':key==='focus'?'Parfait +6 ms':'+2,5 % critique';
 function updateStats(){
   const stats=[[state.highestStage,'Meilleure série'],[state.kills,'Sacs brisés'],[state.bestCombo,'Meilleur combo'],[state.hits?Math.round(state.perfects/state.hits*100)+' %':'—','Frappes parfaites'],[state.flows,'Flows déclenchés'],[state.totalCoins,'Éclats gagnés']];
   $('#stats-grid').innerHTML=stats.map(([value,label])=>'<div class="stat-cell"><strong>'+(typeof value==='number'?format(value):value)+'</strong><span>'+label+'</span></div>').join('');
@@ -331,20 +386,39 @@ function updateStats(){
   $('#achievements').innerHTML=ACHIEVEMENTS.map(a=>{const earned=state.achievements.includes(a.id),secret=a.hidden&&!earned;return '<div class="achievement '+(earned?'earned':'')+'"><i>'+(earned?'✓':'◇')+'</i><span><strong>'+(secret?'???':a.name)+'</strong><small>'+(secret?'Trophée caché':a.text)+'</small></span><em>'+(secret?'?':'+'+coinGain.format(a.reward))+' ◈</em></div>';}).join('');
 }
 function pulse(element,className){element.classList.remove(className);void element.offsetWidth;element.classList.add(className);}
+// Page particles (buttons, purchases, timing marks), off with reduced motion or calm effects; capped so fast taps stay light.
+function sparkle(x,y,{color='#fff1c1',count=10,dist=58,coin=false,up=false}={}){
+  if(!settings.intense||!scene.motion)return;
+  for(let i=0;i<count&&fxLayer.childElementCount<90;i++){
+    const p=fxLayer.appendChild(document.createElement('i')),a=up?-Math.PI/2+(Math.random()-.5)*1.8:Math.random()*Math.PI*2,d=dist*(.45+Math.random()*.75),s=coin?7+Math.random()*4:4+Math.random()*5,dx=Math.cos(a)*d,dy=Math.sin(a)*d;
+    p.style.cssText=`left:${x}px;top:${y}px;width:${s}px;height:${s}px`+(coin?'':`;background:${color};color:${color}`);if(coin)p.className='coin';
+    const move=(mx,my,extra='')=>`translate(calc(-50% + ${mx}px),calc(-50% + ${my}px))${extra}`;
+    p.animate(coin?[{transform:move(0,0),easing:'cubic-bezier(.2,.8,.4,1)'},{transform:move(dx*.6,dy,' rotateY(360deg)'),offset:.45,easing:'cubic-bezier(.6,0,.8,.4)'},{transform:move(dx,dy+d*1.4,' rotateY(720deg)'),opacity:0}]
+      :[{transform:move(0,0,' scale(1)'),opacity:1},{transform:move(dx*.8,dy*.8,' scale(.85)'),opacity:1,offset:.4},{transform:move(dx,dy+14,' scale(.3)'),opacity:0}],
+      {duration:coin?700+Math.random()*300:480+Math.random()*260,easing:coin?'linear':'cubic-bezier(.2,.6,.35,1)'}).onfinish=()=>p.remove();
+  }
+}
+function burstFrom(element,options){const r=element?.getBoundingClientRect();if(r?.width)sparkle(r.left+r.width/2,r.top+r.height/2,options);}
+// A purchase: coins jump out of the button and the wallet glints as it pays.
+function spend(button){burstFrom(button,{coin:true,count:10,dist:70,up:true});burstFrom($('.wallet'),{color:'#ffcc3c',count:8,dist:40});}
+document.addEventListener('pointerdown',event=>{const b=event.target.closest?.('button,label.add-music,label.retry-import');if(b&&!b.disabled)sparkle(event.clientX,event.clientY,{color:getComputedStyle(b).getPropertyValue('--spark').trim()||undefined});},{capture:true,passive:true});
 // Colour + ✓/✗ on the target so hits and misses read without relying on colour alone.
-function judgeFlash(grade){for(const element of [$('#strike-button'),$('#mobile-strike')]){element.dataset.judge=grade;pulse(element,'judged');}}
+function judgeFlash(grade){
+  for(const element of [$('#strike-button'),$('#mobile-strike')]){element.dataset.judge=grade;pulse(element,'judged');}
+  if(grade!=='miss')burstFrom($$('.target-ring').find(ring=>ring.offsetParent),grade==='perfect'?{color:'#2fb7b2',count:12,dist:56}:{color:'#fff1c1',count:5,dist:36});
+}
 function showMoment(kicker,title,detail,kind=''){
   clearTimeout(momentTimeout);const card=$('#moment-card');card.className='moment-card '+kind;
-  $('#moment-kicker').textContent=kicker;$('#moment-title').textContent=title;$('#moment-detail').textContent=detail;void card.offsetWidth;card.classList.add('show');
+  $('#moment-kicker').textContent=kicker;$('#moment-title').textContent=title;$('#moment-detail').textContent=detail;void card.offsetWidth;card.classList.add('show');burstFrom(card,{color:kind==='boss'?'#ff7a3c':'#ffe2a0',count:14,dist:110});
   momentTimeout=setTimeout(()=>card.classList.remove('show'),2900);
 }
 function award(){
   const earned=claimAchievements(state);if(!earned.length)return;
-  trophyQueue.push(...earned);showTrophy();pulse($('.wallet'),'rewarding');save();
+  trophyQueue.push(...earned);showTrophy();pulse($('.wallet'),'rewarding');burstFrom($('.wallet'),{coin:true,count:12,dist:60,up:true});save();
 }
 function showTrophy(){
   if(!trophyQueue.length||!$('#trophy-popup').hidden||$$('dialog[open]').length)return;
-  const trophy=trophyQueue.shift();$('#trophy-name').textContent=trophy.name;$('#trophy-detail').textContent=trophy.text;$('#trophy-reward').textContent='+'+coinGain.format(trophy.reward)+' pièces';$('#trophy-popup').hidden=false;scene.celebrate('trophy');audio.cue('milestone');trophyTimer=setTimeout(closeTrophy,5500);
+  const trophy=trophyQueue.shift();$('#trophy-name').textContent=trophy.name;$('#trophy-detail').textContent=trophy.text;$('#trophy-reward').textContent='+'+coinGain.format(trophy.reward)+' pièces';$('#trophy-popup').hidden=false;burstFrom($('#trophy-popup'),{color:'#ffcc3c',count:16,dist:90});scene.celebrate('trophy');audio.cue('milestone');trophyTimer=setTimeout(closeTrophy,5500);
 }
 function closeTrophy(){clearTimeout(trophyTimer);$('#trophy-popup').hidden=true;showTrophy();}
 $('#close-trophy').addEventListener('click',closeTrophy);
@@ -355,7 +429,7 @@ function dealDamage(amount,finisher=false){
   // The school can break several bags per second late in a run: the loud part (sound, big number, buzz) plays at most 4 times a second.
   const breakTime=performance.now(),loud=breakTime-lastBreakAt>250;if(loud)lastBreakAt=breakTime;
   pulse($('.wallet'),'rewarding');scene.celebrate('victory',breakTime,loud?'+'+format(state.totalCoins-coinsBefore)+' ◈':'');
-  if(loud){audio.bagBreak();buzz([20,30,40]);scene.ejectBag(breakTime,{reinforced:wasBoss,finisher});}
+  if(loud){audio.bagBreak();buzz([20,30,40]);burstFrom($('.wallet'),{coin:true,count:6,dist:50,up:true});scene.ejectBag(breakTime,{reinforced:wasBoss,finisher});}
   if(state.bosses>before){state.pendingBoons++;showMoment('ÉPREUVE ACCOMPLIE','LE SAC CÈDE.',audio.playing?'Un don t’attend à la fin du morceau.':'Choisis un don pour ton dojo.','boss');audio.cue('boss');if(!audio.playing)offerBoons();}
   else if(state.stage%5===0)showMoment('ÉPREUVE · SÉRIE '+state.stage,'SAC RENFORCÉ','Une résistance supérieure. Une récompense ×4.','boss');
   const unlocked=Object.values(FORMS).filter(form=>form.stage>previousStage && form.stage<=state.highestStage);
@@ -374,7 +448,7 @@ function breakCombo(){
 function tickHold(clock,now){
   while(holding&&holding.nextTick<=Math.min(clock,holding.end)){
     holding.nextTick+=.18;holding.ticks++;
-    scene.animate('hero',holding.ticks%2?'cross':'punch',now,170);scene.strikeBag(now,.6);scene.impact({combo,now});audio.holdTick();
+    scene.hit({move:holding.ticks%2?'cross':'punch',now,combo,interval:.2,light:true});audio.holdTick();
     dealDamage(Math.max(1,Math.round(hitDamage(state,'good',combo,1).damage*.4)));// may open a boon pick, which pauses the song and clears the hold
   }
   if(!holding||clock<holding.end)return;
@@ -397,13 +471,13 @@ function feedback(label,subline,grade='perfect'){
   const small=document.createElement('small');small.textContent=subline;element.append(small);void element.offsetWidth;element.classList.add('show');
 }
 function setAuto(enabled){autoEnabled=enabled;resetCombo();$('#timing-text').textContent=transportLabel();updateUI();}
-$('#auto-strike').addEventListener('click',()=>{setAuto(!autoEnabled);if(autoEnabled&&!audio.playing)void play();});
+$('#auto-strike').addEventListener('click',()=>{if(performance.now()-lastHumanStrike<300)return;setAuto(!autoEnabled);if(autoEnabled&&!audio.playing)void play();});
 $$('[data-impact-style]').forEach(button=>button.addEventListener('click',async()=>{
   settings.impactStyle=button.dataset.impactStyle;audio.impactStyle=settings.impactStyle;save();updateUI();
   try{await audio.previewImpact();if(!settings.sfx||settings.sfxVolume===0)toast('Son choisi · les impacts sont coupés dans les réglages.');}catch(error){toast(error.message);}
 }));
 async function act(inputTimestamp=performance.now(),automaticEvent=null){
-  if(sessionMenuOpen||!$('#dojo-reveal').hidden||$$('dialog[open]').length)return;
+  if(sessionMenuOpen||shopOpen||!$('#dojo-reveal').hidden||$$('dialog[open]').length)return;
   const automated=Boolean(automaticEvent);
   if(!automated&&autoEnabled)setAuto(false);
   if(!audio.playing){await play();return;}
@@ -437,20 +511,20 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
     const grace=!free&&!automated&&judgment.grade==='perfect'&&finisherReady(state),count=dealDamage(damage,grace),graceKill=grace&&count>0;flow.hit(judgment.grade,interval);
     const technique=techniqueFor(judgment.event?.index??state.hits-1,armedTechnique);armedTechnique=null;
     const move=learnedMove(technique,combo,state.highestStage,judgment.event?.index??state.hits-1);
-    scene.animate('hero',move,now,Math.max(210,Math.min(420,interval*850)));scene.strikeBag(now,hit.critical?1.5:1);
-    scene.impact({damage:'+'+coinGain.format(coinsEarned)+' ◈',critical:hit.critical,combo,now:now+45});
+    // Contact is drawn on this very frame; the note's anticipation already played before it.
+    scene.hit({move,now,grade:judgment.grade,critical:hit.critical,combo,interval,damage:'+'+coinGain.format(coinsEarned)+' ◈'});
     feedback(graceKill?'COUP DE GRÂCE !':hit.critical?'CRITIQUE':automated?'AUTO':free?'IMPACT':judgment.grade==='perfect'?'PARFAIT'+(perfectRun>1?' ×'+perfectRun:''):'BIEN',graceKill?'PRIME DU SAC ×2 · SÉRIE '+state.stage:count?'SAC BRISÉ · SÉRIE '+state.stage:(FORMS[move]?.label||STYLE_MOVES[move]||TECHNIQUES[technique].label).toUpperCase()+' · +'+coinGain.format(coinsEarned)+' PIÈCE'+(coinsEarned<2?'':'S'),hit.critical?'critical':judgment.grade);
-    audio.hit(judgment.grade,hit.critical,combo);if(!automated)buzz(hit.critical?30:10);
+    audio.hit(judgment.grade,hit.critical,combo,{weight:MOVES[move]?.weight,energy});if(!automated)buzz(hit.critical?30:10);
     if(judgment.event?.hold&&!free&&audio.playing){holding={index:judgment.event.index,end:judgment.event.time+judgment.event.hold,nextTick:judgment.event.time+.18,auto:automated,source:null,ticks:0};feedback('MAINTIENS','RAFALE · GARDE LA TOUCHE ENFONCÉE','perfect');}pulse($('.combo-badge'),'bump');pulse($('#strike-button'),'impact');award();
     if(!free&&!automated&&[8,16,32,64,128].includes(combo)){showMoment('ENCHAÎNEMENT SANS RUPTURE','COMBO ×'+combo,combo>=32?'LE DOJO SUIT TON FLOW.':'CHAQUE COUP TROUVE SA PLACE.','flow');audio.cue('milestone');scene.celebrate('flow');}
   }else{
     breakCombo();scene.animate('hero','punch',now);feedback('HORS TEMPO','VISE LE GRAND REPÈRE','miss');
   }
-  $('#timing-text').textContent=automated?'AUTO · SYNCHRO':free?'FRAPPE LIBRE':(judgment.grade==='perfect'?'PARFAIT':judgment.error<0?'UN PEU TÔT':'UN PEU TARD')+' · '+Math.round(Math.abs(judgment.error))+' MS';
+  $('#timing-text').textContent=automated?'FRAPPE AUTO · SYNCHRO':free?'FRAPPE LIBRE':(judgment.grade==='perfect'?'PARFAIT':judgment.error<0?'UN PEU TÔT':'UN PEU TARD')+' · '+Math.round(Math.abs(judgment.error))+' MS';
   updateUI();
 }
 for(const selector of ['#strike-button','#bag-hitbox','#mobile-strike']){
-  $(selector).addEventListener('pointerdown',event=>{if(event.button!==0||event.pointerType==='touch'&&!audio.playing)return;event.preventDefault();act(event.timeStamp);if(holding&&!holding.source)holding.source='pointer';});
+  $(selector).addEventListener('pointerdown',event=>{if(event.button!==0||event.pointerType==='touch'&&!audio.playing)return;event.preventDefault();lastHumanStrike=performance.now();act(event.timeStamp);if(holding&&!holding.source)holding.source='pointer';});
   $(selector).addEventListener('contextmenu',event=>event.preventDefault());// a long press must hold the note, not open a menu
   $(selector).addEventListener('click',event=>{if(event.detail===0||!audio.playing)act(event.timeStamp);});
 }
@@ -458,7 +532,7 @@ document.addEventListener('keydown',event=>{
   if(sessionMenuOpen)return;
   if(!['KeyD','KeyF','Space'].includes(event.code)||event.repeat||event.ctrlKey||event.altKey||event.metaKey||$$('dialog[open]').length||/INPUT|TEXTAREA|SELECT/.test(event.target.tagName))return;
   if(event.code==='Space'&&event.target.closest('button')&&!['strike-button','bag-hitbox','mobile-strike','play-button','start-button'].includes(event.target.closest('button').id))return;
-  event.preventDefault();act(event.timeStamp);if(holding&&!holding.source)holding.source=event.code;
+  event.preventDefault();lastHumanStrike=performance.now();act(event.timeStamp);if(holding&&!holding.source)holding.source=event.code;
 });
 function selectShopTab(key,focus=false){
   $$('[data-shop-tab]').forEach(button=>{const selected=button.dataset.shopTab===key;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;$('#'+button.dataset.shopTab+'-panel').hidden=!selected;if(selected&&focus)button.focus();});
@@ -472,13 +546,33 @@ function showTab(tab){document.body.dataset.tab=tab;$$('.mobile-nav [data-tab]')
 $$('.mobile-nav [data-tab]').forEach(button=>button.addEventListener('click',()=>{showTab(button.dataset.tab);scrollTo(0,0);}));
 // The playlist and song settings start folded on phones so the play tab fits on one screen.
 if(matchMedia('(max-width:700px)').matches)$('.session-more').open=false;
-function openDojo(tab='school'){showTab('dojo');selectShopTab(tab);$('#dojo-sidebar').scrollIntoView({behavior:scene.motion?'smooth':'auto',block:'nearest'});}
+const phone=matchMedia('(max-width:700px)');
+function openDojo(tab='school'){selectShopTab(tab);if(phone.matches){setShop(true);return;}$('#dojo-sidebar').scrollIntoView({behavior:scene.motion?'smooth':'auto',block:'nearest'});}
+// Phones: the shop is a panel over the dojo. The music keeps playing; notes that pass while it is open are neither judged
+// nor missed, so closing it hands the next note straight back to the player.
+let shopOpen=false;
+function setShop(open){
+  if(shopOpen===open)return;shopOpen=open;document.body.classList.toggle('shop-open',open);$('#shop-backdrop').hidden=!open;
+  $$('[data-shop-open]').forEach(button=>button.setAttribute('aria-expanded',String(open)));
+  if(open){$('#dojo-sidebar').scrollTop=0;$('.sheet-close').focus({preventScroll:true});return;}
+  const clock=audio.audibleTime()-settings.latency/1000;lastExpired=Math.max(lastExpired,rhythm.lowerBound(clock-.05)-1);autoStriker.reset(rhythm,clock);
+  if(!sessionMenuOpen)$(phone.matches?'#mobile-strike':'#strike-button').focus({preventScroll:true});
+}
+$$('[data-shop-open]').forEach(button=>button.addEventListener('click',()=>openDojo()));
+$$('[data-shop-close]').forEach(element=>element.addEventListener('click',()=>setShop(false)));
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&shopOpen){event.preventDefault();setShop(false);}});
+phone.addEventListener('change',()=>{if(!phone.matches)setShop(false);});
 $$('[data-dojo-scroll]').forEach(button=>button.addEventListener('click',()=>openDojo()));
-$('#goal-card').addEventListener('click',()=>{const goal=currentGoal(state);if(goal.action==='combat'){if(!audio.playing)play();else toast('Le sac renforcé arrive à la prochaine épreuve.');}else openDojo(goal.action==='legacy'?'legacy':'school');});
+function goalAction(event){
+  const plan=recruitPlan(state);
+  if(plan&&state.coins>=plan.cost){if(!purchaseAllowed(true))return;const before=sessionPayout(state);if(recruit(state))welcomeStudents(plan.students,before,event?.currentTarget);return;}
+  const goal=currentGoal(state);if(goal.action==='combat'){if(!audio.playing)play();else toast('Le sac renforcé arrive à la prochaine épreuve.');}else openDojo(goal.action==='legacy'?'legacy':'school');
+}
+$('#goal-card').addEventListener('click',goalAction);$('#recruit-slot').addEventListener('click',goalAction);$('#shop-recruit').addEventListener('click',goalAction);
 $$('.upgrade').forEach(button=>button.addEventListener('click',()=>{
   const key=button.dataset.upgrade;
-  if(!buyUpgrade(state,key))return;
-  pulse(button,'bought');scene.celebrate('purchase');audio.cue('purchase');
+  if(state.coins<upgradeCost(state,key)||!purchaseAllowed()||!buyUpgrade(state,key))return;
+  pulse(button,'bought');spend(button);scene.celebrate('purchase');audio.cue('purchase');
   award();updateUI();save();
 }));
 $('#prepare-prestige').addEventListener('click',()=>{audio.pause();const gain=prestigeGain(state);if(gain<1)return;$('#legacy-preview').textContent='Tu recevras '+gain+' sceau'+(gain>1?'x':'')+', pour une puissance permanente totale de +'+format((state.seals+gain)*20)+' %. Poings ardents niveau 1 seront offerts.';$('#legacy-confirm').showModal();});
@@ -507,8 +601,8 @@ function renderPlaylist(){
     const row=document.createElement('li');row.dataset.trackId=track.id;row.draggable=true;row.className='playlist-row'+(track.id===library.selected?' selected':'');
     const drag=document.createElement('span');drag.className='drag-grip';drag.textContent='⠿';drag.setAttribute('aria-hidden','true');row.append(drag);
     const choose=document.createElement('button');choose.className='playlist-choose';choose.dataset.action='select';choose.setAttribute('aria-pressed',String(track.id===library.selected));choose.title=track.title;
-    const title=document.createElement('strong');title.textContent=track.title;if(state.grades[track.id]){const badge=document.createElement('span');badge.className='grade-badge';badge.dataset.grade=state.grades[track.id];badge.textContent=state.grades[track.id];badge.title='Meilleure note';title.prepend(badge);}const meta=document.createElement('small');meta.textContent=durationText(track.duration)+' · '+number.format(track.bpm)+' BPM'+(track.builtin?' · DOJO':'');choose.append(title,meta);row.append(choose);
-    for(const [action,text,label,disabled]of [['up','↑','Monter',index===0],['down','↓','Descendre',index===library.items.length-1],['remove','×','Retirer',false]]){const button=document.createElement('button');button.className='playlist-action '+action;button.dataset.action=action;button.textContent=text;button.disabled=disabled;button.setAttribute('aria-label',label+' '+track.title);row.append(button);}
+    const title=document.createElement('strong');title.textContent=track.title;if(state.grades[track.id]){const badge=document.createElement('span');badge.className='grade-badge';badge.dataset.grade=state.grades[track.id];badge.textContent=state.grades[track.id];badge.title='Meilleure note';title.prepend(badge);}const meta=document.createElement('small');meta.textContent=durationText(track.duration)+' · '+number.format(track.bpm)+' BPM'+(track.builtin?' · DOJO':track.chart?.source==='grid'?' · calé à la main':' · rythme auto');choose.append(title,meta);row.append(choose);
+    for(const [action,text,label,disabled]of [['listen','▶','Écouter',false],['play','Jouer','Jouer',false],['up','↑','Monter',index===0],['down','↓','Descendre',index===library.items.length-1],['remove','×','Retirer',false]]){const button=document.createElement('button');button.className='playlist-action '+action;button.dataset.action=action;button.textContent=text;button.disabled=disabled;button.setAttribute('aria-label',label+' '+track.title);row.append(button);}
     list.append(row);
   });
   $$('[data-original]').forEach(button=>button.disabled=library.order.includes(button.dataset.original));setTrackUI();renderDaily();
@@ -543,6 +637,7 @@ $('#playlist-list').addEventListener('click',async event=>{
   const button=event.target.closest('button[data-action]'),row=button?.closest('[data-track-id]');if(!row||importing||trackLoading)return;
   const id=row.dataset.trackId,index=library.order.indexOf(id),action=button.dataset.action;
   if(action==='select'){await chooseTrack(id);return;}
+  if(action==='listen'||action==='play'){if(library.selected!==id)await chooseTrack(id);await (action==='play'?play():previewTrack());return;}
   if(action==='up'||action==='down')await library.move(id,index+(action==='up'?-1:1));
   if(action==='remove'){
     if(library.selected===id){audio.pause();loadedId=null;selectionSerial++;}
@@ -569,15 +664,15 @@ $('#half-tempo').addEventListener('click',()=>changeTempo(Number($('#bpm-input')
 $('#tap-tempo').addEventListener('click',()=>{const now=performance.now();if(taps.length&&now-taps.at(-1)>2000)taps=[];taps.push(now);taps=taps.slice(-8);$('#tap-tempo').textContent=taps.length<2?'Encore…':taps.length+' taps';if(taps.length>1){const values=taps.slice(1).map((t,i)=>t-taps[i]).sort((a,b)=>a-b);changeTempo(60000/values[Math.floor(values.length/2)]);}});
 async function importAudio(files){
   if(importing||!files.length)return;await libraryReady;if(importing)return;importing=true;updateUI();const status=$('#upload-status');status.className='upload-status';const added=[],errors=[];let saved=true;
-  importController=new AbortController();const signal=importController.signal;
+  importController=new AbortController();const signal=importController.signal;$('#retry-import').hidden=true;
   try{
     audio.prepare();
     for(const [index,file]of files.entries()){
-      status.textContent='Ajout '+(index+1)+' / '+files.length+' · '+file.name;
+      status.textContent='Lecture de « '+file.name+' » · '+(index+1)+' / '+files.length;
       try{
         const buffer=await decodeMusicFile(audio.ctx,file,{signal});
         let analysis=null;
-        try{analysis=await analyzeSong(buffer,p=>status.textContent='Analyse '+(index+1)+' / '+files.length+' · '+file.name+' · '+p+' %',{signal});}catch(error){if(error.name==='AbortError')throw error;errors.push(file.name+' : '+error.message);}
+        try{analysis=await analyzeSong(buffer,p=>status.textContent='Préparation de « '+file.name+' » · analyse du rythme '+p+' %',{signal});}catch(error){if(error.name==='AbortError')throw error;errors.push(file.name+' : '+error.message);}
         if(signal.aborted)throw new DOMException('Import annulé.','AbortError');
         const record={id:crypto.randomUUID(),title:file.name.replace(/\.[^.]+$/,'').slice(0,180),blob:file,bpm:analysis?.tempo?.bpm||120,offset:analysis?.beatMap?.offset??analysis?.tempo?.offset??0,duration:buffer.duration,builtin:false,analysis,analysisAttempted:!analysis};
         saved=(await library.add(record))&&saved;added.push(record.id);renderPlaylist();
@@ -585,11 +680,12 @@ async function importAudio(files){
     }
     if(added.length&&!audio.playing){await library.select(added[0]);loadedId=null;audio.select('silent');}
     status.textContent=added.length+' son'+(added.length>1?'s':'')+' ajouté'+(added.length>1?'s':'')+'. '+(saved?'Playlist conservée sur cet appareil.':'Stockage indisponible ou plein : les nouveaux sons restent pour cette session.')+(errors.length?' '+errors.join(' '):'');
-    if(errors.length||!saved)status.classList.add('error');
-  }catch(error){status.textContent=error.name==='AbortError'?'Import annulé. '+added.length+' son(s) déjà ajoutés à la playlist.':error.message||'Import impossible. Essaie un MP3, M4A ou WAV depuis Fichiers.';status.classList.add('error');}
+    if(errors.length||!saved)status.classList.add('error');$('#retry-import').hidden=!errors.length;
+  }catch(error){status.textContent=error.name==='AbortError'?'Import annulé. '+added.length+' son(s) déjà ajoutés à la playlist.':error.message||'Import impossible. Essaie un MP3, M4A ou WAV depuis Fichiers.';status.classList.add('error');$('#retry-import').hidden=error.name==='AbortError';}
   finally{importing=false;importController=null;$('#audio-upload').value='';renderPlaylist();updateUI();}
 }
 $('#audio-upload').addEventListener('change',event=>importAudio(Array.from(event.target.files)));
+$('#audio-upload').addEventListener('cancel',()=>{if(!importing)$('#upload-status').textContent='Aucun fichier choisi : ta playlist n’a pas changé.';});
 $('#cancel-audio-import').addEventListener('click',()=>importController?.abort());
 const dropzone=$('#upload-zone');
 for(const type of ['dragenter','dragover'])dropzone.addEventListener(type,event=>{if(draggingTrack)return;event.preventDefault();dropzone.classList.add('dragging');});
@@ -628,7 +724,7 @@ const deviceCalibration=new DeviceCalibration(audio,offset=>{
 });
 $('#sfx').checked=settings.sfx;$('#intense-effects').checked=settings.intense;
 $('#sfx').addEventListener('change',event=>{settings.sfx=event.target.checked;audio.sfx=settings.sfx;save();});
-$('#intense-effects').addEventListener('change',event=>{settings.intense=event.target.checked;scene.intense=settings.intense;save();});
+$('#intense-effects').addEventListener('change',event=>{settings.intense=event.target.checked;scene.intense=settings.intense;document.body.classList.toggle('calm-fx',!settings.intense);save();});
 $$('[data-volume]').forEach(input=>input.addEventListener('input',()=>{const value=Number(input.value);if(input.dataset.volume==='music'){settings.volume=value;audio.setVolume(value/100);}else{settings.sfxVolume=value;audio.setSfxVolume(value/100);}syncMixer();save();}));
 $('#menu-metronome').addEventListener('change',event=>{settings.metronome=event.target.checked;audio.metronome=settings.metronome;$('#metronome').checked=settings.metronome;save();});
 $('#latency').addEventListener('input', event => {
@@ -668,10 +764,12 @@ $('#import-save').addEventListener('change', async event => {
 
 
 function drawNotes(time){
-  if(!audio.playing||settings.rhythmMode==='freestyle'){clearNotes();return;}
-  const runway=$('#note-runway'),height=runway.clientHeight;
+  const runway=$('#note-runway'),beat=lastBeatPulse&&time-settings.latency/1000-lastBeatPulse.songTime;
+  if(!audio.playing||settings.rhythmMode==='freestyle'){clearNotes();runway.classList.toggle('beat',audio.playing&&beat>=0&&beat<.14);return;}
+  // Phones lay the lane across the screen under the stage: notes travel right to left towards the fixed mark.
+  const horizontal=runway.clientWidth>runway.clientHeight*1.6,height=horizontal?runway.clientWidth:runway.clientHeight;runway.classList.toggle('horizontal',horizontal);
   const target=$('#strike-button');
-  const anchor=target.parentElement.offsetTop+target.offsetTop+target.offsetHeight/2;
+  const anchor=horizontal?target.parentElement.offsetLeft+target.offsetLeft+target.offsetWidth/2:target.parentElement.offsetTop+target.offsetTop+target.offsetHeight/2;
   const ahead=Math.max(1.6,Math.min(2.8,(height-anchor)/170));
   const clock=time-settings.latency/1000,upcoming=rhythm.upcoming(clock,ahead,.2).filter(event=>event.index>lastExpired&&!resolved.has(event.index)),visible=new Set();
   const finisherIndex=settings.rhythmMode==='tempo'&&finisherReady(state)?upcoming[0]?.index:-1;
@@ -680,10 +778,10 @@ function drawNotes(time){
     if(!node){node=document.createElement('span');node.className='queue-note'+(note.beat?'':' offbeat');const img=document.createElement('img');img.src='./icons/power.svg';img.alt='';const label=document.createElement('small');label.textContent=note.index%8+1;node.append(img,label);if(note.hold){const tail=document.createElement('i');tail.className='hold-tail';node.append(tail);}$('#upcoming-notes').append(node);queueNodes.set(note.index,node);}
     const technique=techniqueFor(note.index,note.index===upcoming[0]?.index?armedTechnique:null);if(node.dataset.currentMove!==technique){node.dataset.currentMove=technique;node.querySelector('img').src=TECHNIQUES[technique].icon;}
     const delay=note.time-clock,y=anchor+delay/ahead*(height-anchor);
-    node.style.transform='translate3d(-50%,calc('+y+'px - 50%),0)';node.style.opacity=delay<-.06?Math.max(0,1+(delay+.06)*10):Math.min(1,(ahead-delay)*4);node.classList.toggle('arriving',Math.abs(delay)<.12);node.classList.toggle('finisher',note.index===finisherIndex);if(note.hold)node.lastChild.style.height=note.hold/ahead*(height-anchor)+'px';
+    node.style.transform=horizontal?'translate3d(calc('+y+'px - 50%),-50%,0)':'translate3d(-50%,calc('+y+'px - 50%),0)';node.style.opacity=delay<-.06?Math.max(0,1+(delay+.06)*10):Math.min(1,(ahead-delay)*4);node.classList.toggle('arriving',Math.abs(delay)<.12);node.classList.toggle('finisher',note.index===finisherIndex);if(note.hold)node.lastChild.style[horizontal?'width':'height']=note.hold/ahead*(height-anchor)+'px';
   }
   // The held note stays pinned on the target while its tail shrinks.
-  if(holding&&queueNodes.has(holding.index)){const node=queueNodes.get(holding.index);visible.add(holding.index);node.style.transform='translate3d(-50%,calc('+anchor+'px - 50%),0)';node.style.opacity=1;node.lastChild.style.height=Math.max(0,holding.end-clock)/ahead*(height-anchor)+'px';}
+  if(holding&&queueNodes.has(holding.index)){const node=queueNodes.get(holding.index);visible.add(holding.index);node.style.transform=horizontal?'translate3d(calc('+anchor+'px - 50%),-50%,0)':'translate3d(-50%,calc('+anchor+'px - 50%),0)';node.style.opacity=1;node.lastChild.style[horizontal?'width':'height']=Math.max(0,holding.end-clock)/ahead*(height-anchor)+'px';}
   for(const [index,node]of queueNodes)if(!visible.has(index)){node.remove();queueNodes.delete(index);}
   const button=$('#strike-button'),ring=button.querySelector('.target-ring'),event=rhythm.playable(clock,lastExpired,resolved);
   const currentTechnique=techniqueFor(event?.index??0,armedTechnique);if(button.dataset.currentMove!==currentTechnique){button.dataset.currentMove=currentTechnique;button.querySelector('img').src=TECHNIQUES[currentTechnique].icon;}
@@ -701,13 +799,30 @@ function drawNotes(time){
   else{delete button.dataset.event;delete button.dataset.time;}
   $$('#beat-meter i').forEach((dot,index)=>dot.classList.toggle('lit',Boolean(lastBeatPulse&&lastBeatPulse.index%8===index&&clock-lastBeatPulse.songTime>=0&&clock-lastBeatPulse.songTime<.14)));
 }
+// The next note still to be played (resolved and expired ones skipped): Nova prepares for it so contact lands on it.
+function comingNote(clock){
+  for(let index=Math.max(lastExpired+1,rhythm.lowerBound(clock-.15)),tries=0;tries<6;index++,tries++){
+    const event=rhythm.event(index);if(!event)return null;
+    if(!resolved.has(index)&&event.time>clock-.12)return event;
+  }
+  return null;
+}
+// Local energy of the song, 0 to 1: loudness from the stored waveform when the track has one, plus the density and strength of nearby notes.
+function songEnergy(clock){
+  let sum=0;for(const note of rhythm.upcoming(clock,1.5,1.5))sum+=note.strength??.6;
+  const notes=Math.min(1,sum/5.4),track=library.current,wave=track?.analysis?.waveform;
+  if(!wave?.length||!(track.duration>0))return notes;
+  const centre=Math.floor(clock/track.duration*wave.length),radius=Math.max(1,Math.round(wave.length/track.duration*.75));let loud=0,count=0;
+  for(let i=Math.max(0,centre-radius);i<Math.min(wave.length,centre+radius);i++){loud+=wave[i];count++;}
+  return .4*notes+.6*Math.min(1,count?loud/count/.7:0);
+}
 function frame(now){
   lastFrame=now;
   if(!document.hidden){
     const boost=flow.active&&audio.playing,time=audio.audibleTime(now),clock=time-settings.latency/1000;
-    if(autoEnabled&&audio.playing&&!sessionMenuOpen&&!$$('dialog[open]').length){const event=autoStriker.take(rhythm,clock);if(event)void act(now,event);}
+    if(autoEnabled&&audio.playing&&!sessionMenuOpen&&!shopOpen&&!$$('dialog[open]').length){const event=autoStriker.take(rhythm,clock);if(event)void act(now,event);}
     if(audio.playing)tickHold(clock,now);
-    if(audio.playing&&!sessionMenuOpen&&!$$('dialog[open]').length&&settings.rhythmMode==='tempo'){
+    if(audio.playing&&!sessionMenuOpen&&!shopOpen&&!$$('dialog[open]').length&&settings.rhythmMode==='tempo'){
       let expired;
       while((expired=rhythm.event(lastExpired+1))&&clock>expired.time+rhythm.windows(expired,state.upgrades.focus).good){
         if(!resolved.has(expired.index)){song.missed++;judgeFlash('miss');if(combo>0){breakCombo();$('#timing-text').textContent='REPRENDS LE FLOW';}}
@@ -719,8 +834,10 @@ function frame(now){
     editor.tick(now);coach.tick();
     const nearest=rhythm.nearest(clock),distance=settings.rhythmMode==='tempo'&&nearest?Math.abs(nearest.time-clock):1;
     const disciples=students(state);
-    const next=rhythm.next('punch',clock),preparation=!sessionMenuOpen&&audio.playing&&settings.rhythmMode==='tempo'&&next?Math.max(0,1-(next.time-clock)/.16):0;
-    scene.render(now,{venueArt:venueOf(state).art,venue:state.venue,combo,upcomingMove:next?learnedMove(techniqueFor(next.index),combo+1,state.highestStage,next.index):'punch',arenaVisible:!sessionMenuOpen,lit:state.dojoLit,playing:audio.playing,beatPhase:distance,preparation,dance:danceEnabled&&audio.playing&&!sessionMenuOpen,musicalBeat:beatPosition(audio.conductor?.beats,time,audio.bpm,audio.offset),flow:boost,tier:dojoTier(state),disciples,boss:rival(state.stage).boss});
+    const next=!sessionMenuOpen&&audio.playing&&(settings.rhythmMode==='tempo'||autoEnabled)?comingNote(clock):null;
+    const preparation=next?(next.time>=clock?Math.max(0,1-(next.time-clock)/.19):Math.max(0,1+(next.time-clock)/.12)):0;
+    energy+=((audio.playing?songEnergy(clock):.35)-energy)*(1-Math.exp(-(now-lastEnergyAt)/500));lastEnergyAt=now;
+    scene.render(now,{energy,venueArt:venueOf(state).art,venue:state.venue,combo,upcomingMove:next?learnedMove(techniqueFor(next.index,armedTechnique),combo+1,state.highestStage,next.index):'punch',arenaVisible:!sessionMenuOpen,lit:state.dojoLit,playing:audio.playing,beatPhase:distance,preparation,dance:danceEnabled&&audio.playing&&!sessionMenuOpen,musicalBeat:beatPosition(audio.conductor?.beats,time,audio.bpm,audio.offset),flow:boost,tier:dojoTier(state),disciples,boss:rival(state.stage).boss});
     if(now-lastPaint>=100){updateUI();lastPaint=now;}
   }
   requestAnimationFrame(frame);
@@ -731,6 +848,7 @@ document.addEventListener('visibilitychange',()=>{
   else{lastFrame=performance.now();hiddenAt=0;updateUI();}
 });
 window.addEventListener('pagehide',()=>{if(!document.hidden){state.savedAt=Date.now();try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch{}}});
+const fitHeight=()=>document.documentElement.style.setProperty('--app-h',innerHeight+'px');addEventListener('resize',fitHeight);fitHeight();
 setInterval(save,5000);award();setTrackUI();updateUI();syncTransport();requestAnimationFrame(frame);
 $$('dialog').forEach(dialog=>dialog.addEventListener('close',()=>showTrophy()));
 if(!storageAvailable)setTimeout(()=>toast('Sauvegarde locale indisponible. Exporte ta progression dans les réglages.'),500);
