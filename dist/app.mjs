@@ -5,7 +5,7 @@ import { FlowMeter } from './flow.mjs';
 import { MusicLibrary } from './music-library.mjs';
 import { freestyleInterval, IMPACT_STYLES } from './audio-sfx.mjs';
 import { Soundtrack, TRACKS } from './audio.mjs';
-import { DojoScene } from './scene.mjs';
+import { DojoScene, MOVES } from './scene.mjs';
 import { RhythmMap, demoMap } from './rhythm.mjs';
 import { createSongChart, songSettings, ANALYSIS_VERSION } from './song-chart.mjs';
 import { analyzeSong } from './analyze-song.mjs';
@@ -47,7 +47,7 @@ let combo=0,perfectRun=0,lastBreakAt=0,holding=null,lastInput=-Infinity,toastTim
 const flow=new FlowMeter();
 let transportBusy=false,importedTitle='',lastPaint=0,lastFrame=performance.now();
 let importController=null;
-let autoEnabled=false,armedTechnique=null,danceEnabled=true;
+let autoEnabled=false,armedTechnique=null,danceEnabled=true,energy=.35,lastEnergyAt=performance.now();
 const autoStriker=new AutoStriker();
 let taps=[],lastExpired=-1;
 let beatDisplayBound=false,lastBeatPulse=null;
@@ -198,6 +198,15 @@ function drawBoons(){
 $('#boon-reroll').addEventListener('click',()=>{$('#boon-reroll').hidden=true;drawBoons();$('#boon-choices .boon-choice').focus();});
 // "Mon dojo": equipment of the current venue (rebuilt when the venue changes), then expand or jump dimension.
 let renderedVenue=0;
+// What a purchase is worth, in the words of the dojo: students and takings per session (they grow with the fans).
+function itemGain(item){state.items.push(item.id);const after=sessionPayout(state);state.items.pop();return after-sessionPayout(state);}
+function itemBenefit(item){
+  const gain=itemGain(item),who=item.students?'+'+item.students+' élève'+(item.students>1?'s':''):'';
+  return [who,gain>=.01?'+'+format(gain)+' pièce'+(gain>=2?'s':'')+' / séance':item.comfort?'+'+Math.round(item.comfort*100)+' % de recette':''].filter(Boolean).join(' · ');
+}
+// The takings line shows the jump (0 → 1,2) for a moment after a purchase raises it.
+let incomeFlash=null;
+function flashIncome(from,to){incomeFlash={from,to,until:performance.now()+2600};for(const element of [$('#income-rate'),$('#battle-card .coin-counter small')])pulse(element,'income-up');}
 function renderVenue(){
   const v=venueOf(state);
   if(renderedVenue!==state.venue){
@@ -205,7 +214,7 @@ function renderVenue(){
     $('#venue-items').replaceChildren(...v.items.map(item=>{
       const button=document.createElement('button');button.type='button';button.className='perk';button.dataset.item=item.id;
       const name=document.createElement('strong');name.textContent=item.name;
-      const text=document.createElement('span');text.textContent=[item.students?'+'+item.students+' élève'+(item.students>1?'s':''):'',item.comfort?'+'+Math.round(item.comfort*100)+' %':''].filter(Boolean).join(' · ');
+      const text=document.createElement('span');text.className='perk-gain';
       const price=document.createElement('em'),icon=new Image(40,40);icon.src='./items/'+item.id+'.webp';icon.alt='';icon.onerror=()=>icon.remove();button.classList.add('has-icon');button.append(icon,name,text,price);return button;
     }));
   }
@@ -214,15 +223,22 @@ function renderVenue(){
   $$('#venue-items .perk').forEach(button=>{
     const item=v.items.find(entry=>entry.id===button.dataset.item),owned=state.items.includes(item.id);
     button.disabled=owned||state.coins<item.cost;button.classList.toggle('owned',owned);
-    button.querySelector('em').textContent=owned?'✓':format(item.cost);
+    button.querySelector('em').textContent=owned?'✓':format(item.cost)+' pièce'+(item.cost>=2?'s':'');
+    button.querySelector('span').textContent=owned?'Installé':itemBenefit(item);
   });
   const next=VENUES[state.venue],expandButton=$('#venue-expand');
   expandButton.disabled=!(canExpand(state)||canJump(state));
   expandButton.textContent=canJump(state)?'Saut de dimension ↗':!next?'Dernier dojo':'Agrandir → '+next.name+' · '+format(expandCost(state));
 }
 $('#venue-items').addEventListener('click',event=>{
-  const id=event.target.closest('[data-item]')?.dataset.item,item=venueOf(state).items.find(entry=>entry.id===id);if(!item||!buyItem(state,id))return;
-  toast('Installé · '+item.name);scene.celebrate('purchase');audio.cue('purchase');award();updateUI();save();
+  const id=event.target.closest('[data-item]')?.dataset.item,item=venueOf(state).items.find(entry=>entry.id===id),before=sessionPayout(state),hadStudents=students(state)>0;
+  if(!item||!buyItem(state,id))return;
+  const after=sessionPayout(state);if(after>before)flashIncome(before,after);
+  // The very first students of the first school get their moment: the panel closes so they can be seen walking in.
+  if(item.students&&!hadStudents&&state.venue===2&&!state.prestiges&&!state.dimension){
+    setShop(false);showMoment('TES PREMIERS ÉLÈVES','+'+item.students+' ÉLÈVES','Ils paient leur cours à chaque fin de morceau.','flow');audio.cue('milestone');
+  }else{toast('Installé · '+item.name+(item.students?' · +'+item.students+' élève'+(item.students>1?'s':''):''));audio.cue('purchase');}
+  scene.celebrate('purchase');award();updateUI();save();
 });
 $('#venue-expand').addEventListener('click',()=>{
   if(canJump(state)){
@@ -291,7 +307,8 @@ function updateUI(){
   $('#previous-track').disabled=!libraryLoaded||trackLoading||importing||!library.next(-1);$('#next-track').disabled=!libraryLoaded||trackLoading||importing||!library.next(1);
   const boost=flow.active&&audio.playing,opponent=rival(state.stage),goal=currentGoal(state),income=sessionPayout(state);
   $('#coins').textContent=format(state.coins);$('#shop-coins').textContent=format(state.coins);$('#session-coins').textContent=format(state.coins);
-  $('#income-rate').textContent='par séance : '+format(income);$('#session-income').textContent=format(income);
+  const jump=incomeFlash&&performance.now()<incomeFlash.until?format(incomeFlash.from)+' → '+format(incomeFlash.to):null;
+  $('#income-rate').textContent='par séance : '+(jump||format(income));$('#session-income').textContent=jump||format(income);
   for(const unit of $$('.coin-unit'))unit.textContent=state.coins<2?'pièce':'pièces';$('#auto-stat').textContent=format(income);$('#school-dps').textContent=format(income);
   $('#power-stat').textContent=format(attackPower(state)*(boost?2.5:1));
   $('#combo-count').innerHTML=combo+'<span>×</span>';
@@ -304,7 +321,8 @@ function updateUI(){
   const count=students(state);
   $('#school-count').textContent=count;$('#school-count-label').textContent=count>1?'élèves':'élève';
   $('#school-title').textContent=venueOf(state).name.toUpperCase();renderVenue();
-  $('#goal-label').textContent=goal.label;$('#goal-detail').textContent=format(Math.min(goal.current,goal.target))+' / '+format(goal.target);
+  const goalItem=venueOf(state).items.find(item=>item.name===goal.label),why=goalItem?itemBenefit(goalItem):state.venue===1&&goal.label==='Agrandir'?'tes premiers élèves':'';
+  $('#goal-label').textContent=goal.label;$('#goal-detail').textContent=format(Math.min(goal.current,goal.target))+' / '+format(goal.target)+' pièces'+(why?' · '+why:'');
   $('#goal-progress').style.width=Math.min(100,goal.current/goal.target*100)+'%';
   document.body.classList.toggle('flowing',boost);document.body.classList.toggle('flow-ready',flow.armed);
   const charge=flow.active?flow.remaining/32*100:flow.charge;
@@ -318,7 +336,7 @@ function updateUI(){
     button.querySelector('small b').textContent=level;button.querySelector('em span').textContent=Number.isFinite(cost)?format(cost):'MAX';
     button.setAttribute('aria-label',button.querySelector('strong').firstChild.textContent.trim()+', '+level+', '+(Number.isFinite(cost)?format(cost)+' pièces':'maximum'));
   });
-  $('.dojo-button').dataset.affordable=affordable||venueOf(state).items.some(item=>!state.items.includes(item.id)&&state.coins>=item.cost)||canExpand(state)||canJump(state);
+  $('.dojo-button').dataset.affordable=affordable||venueOf(state).items.some(item=>!state.items.includes(item.id)&&state.coins>=item.cost)||canExpand(state)||canJump(state);$('#battle-card .shop-toggle').classList.toggle('affordable',$('.dojo-button').dataset.affordable==='true');
   renderPerks();$('#legacy-seals').textContent=format(state.seals);$('#legacy-bonus').textContent='+'+format(Math.round((legacyMultiplier(state)-1)*100))+' %';
   const gain=prestigeGain(state);$('#legacy-gain').textContent='+'+gain+' sceau'+(gain>1?'x':'');$('#prepare-prestige').disabled=gain<1;
   $('#legacy-requirement').textContent=state.venue<2?'Achète d’abord une salle.':!canTransmit(state)?'Trop célèbre pour transmettre : vise le saut de dimension.':gain>0?'Prêt à transmettre.':format(state.runCoins)+' / 12 000';
@@ -374,7 +392,7 @@ function breakCombo(){
 function tickHold(clock,now){
   while(holding&&holding.nextTick<=Math.min(clock,holding.end)){
     holding.nextTick+=.18;holding.ticks++;
-    scene.animate('hero',holding.ticks%2?'cross':'punch',now,170);scene.strikeBag(now,.6);scene.impact({combo,now});audio.holdTick();
+    scene.hit({move:holding.ticks%2?'cross':'punch',now,combo,interval:.2,light:true});audio.holdTick();
     dealDamage(Math.max(1,Math.round(hitDamage(state,'good',combo,1).damage*.4)));// may open a boon pick, which pauses the song and clears the hold
   }
   if(!holding||clock<holding.end)return;
@@ -403,7 +421,7 @@ $$('[data-impact-style]').forEach(button=>button.addEventListener('click',async(
   try{await audio.previewImpact();if(!settings.sfx||settings.sfxVolume===0)toast('Son choisi · les impacts sont coupés dans les réglages.');}catch(error){toast(error.message);}
 }));
 async function act(inputTimestamp=performance.now(),automaticEvent=null){
-  if(sessionMenuOpen||!$('#dojo-reveal').hidden||$$('dialog[open]').length)return;
+  if(sessionMenuOpen||shopOpen||!$('#dojo-reveal').hidden||$$('dialog[open]').length)return;
   const automated=Boolean(automaticEvent);
   if(!automated&&autoEnabled)setAuto(false);
   if(!audio.playing){await play();return;}
@@ -437,10 +455,10 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
     const grace=!free&&!automated&&judgment.grade==='perfect'&&finisherReady(state),count=dealDamage(damage,grace),graceKill=grace&&count>0;flow.hit(judgment.grade,interval);
     const technique=techniqueFor(judgment.event?.index??state.hits-1,armedTechnique);armedTechnique=null;
     const move=learnedMove(technique,combo,state.highestStage,judgment.event?.index??state.hits-1);
-    scene.animate('hero',move,now,Math.max(210,Math.min(420,interval*850)));scene.strikeBag(now,hit.critical?1.5:1);
-    scene.impact({damage:'+'+coinGain.format(coinsEarned)+' ◈',critical:hit.critical,combo,now:now+45});
+    // Contact is drawn on this very frame; the note's anticipation already played before it.
+    scene.hit({move,now,grade:judgment.grade,critical:hit.critical,combo,interval,damage:'+'+coinGain.format(coinsEarned)+' ◈'});
     feedback(graceKill?'COUP DE GRÂCE !':hit.critical?'CRITIQUE':automated?'AUTO':free?'IMPACT':judgment.grade==='perfect'?'PARFAIT'+(perfectRun>1?' ×'+perfectRun:''):'BIEN',graceKill?'PRIME DU SAC ×2 · SÉRIE '+state.stage:count?'SAC BRISÉ · SÉRIE '+state.stage:(FORMS[move]?.label||STYLE_MOVES[move]||TECHNIQUES[technique].label).toUpperCase()+' · +'+coinGain.format(coinsEarned)+' PIÈCE'+(coinsEarned<2?'':'S'),hit.critical?'critical':judgment.grade);
-    audio.hit(judgment.grade,hit.critical,combo);if(!automated)buzz(hit.critical?30:10);
+    audio.hit(judgment.grade,hit.critical,combo,{weight:MOVES[move]?.weight,energy});if(!automated)buzz(hit.critical?30:10);
     if(judgment.event?.hold&&!free&&audio.playing){holding={index:judgment.event.index,end:judgment.event.time+judgment.event.hold,nextTick:judgment.event.time+.18,auto:automated,source:null,ticks:0};feedback('MAINTIENS','RAFALE · GARDE LA TOUCHE ENFONCÉE','perfect');}pulse($('.combo-badge'),'bump');pulse($('#strike-button'),'impact');award();
     if(!free&&!automated&&[8,16,32,64,128].includes(combo)){showMoment('ENCHAÎNEMENT SANS RUPTURE','COMBO ×'+combo,combo>=32?'LE DOJO SUIT TON FLOW.':'CHAQUE COUP TROUVE SA PLACE.','flow');audio.cue('milestone');scene.celebrate('flow');}
   }else{
@@ -472,7 +490,22 @@ function showTab(tab){document.body.dataset.tab=tab;$$('.mobile-nav [data-tab]')
 $$('.mobile-nav [data-tab]').forEach(button=>button.addEventListener('click',()=>{showTab(button.dataset.tab);scrollTo(0,0);}));
 // The playlist and song settings start folded on phones so the play tab fits on one screen.
 if(matchMedia('(max-width:700px)').matches)$('.session-more').open=false;
-function openDojo(tab='school'){showTab('dojo');selectShopTab(tab);$('#dojo-sidebar').scrollIntoView({behavior:scene.motion?'smooth':'auto',block:'nearest'});}
+const phone=matchMedia('(max-width:700px)');
+function openDojo(tab='school'){selectShopTab(tab);if(phone.matches){setShop(true);return;}$('#dojo-sidebar').scrollIntoView({behavior:scene.motion?'smooth':'auto',block:'nearest'});}
+// Phones: the shop is a panel over the dojo. The music keeps playing; notes that pass while it is open are neither judged
+// nor missed, so closing it hands the next note straight back to the player.
+let shopOpen=false;
+function setShop(open){
+  if(shopOpen===open)return;shopOpen=open;document.body.classList.toggle('shop-open',open);$('#shop-backdrop').hidden=!open;
+  $$('[data-shop-open]').forEach(button=>button.setAttribute('aria-expanded',String(open)));
+  if(open){$('#dojo-sidebar').scrollTop=0;$('.sheet-close').focus({preventScroll:true});return;}
+  const clock=audio.audibleTime()-settings.latency/1000;lastExpired=Math.max(lastExpired,rhythm.lowerBound(clock-.05)-1);autoStriker.reset(rhythm,clock);
+  if(!sessionMenuOpen)$(phone.matches?'#mobile-strike':'#strike-button').focus({preventScroll:true});
+}
+$$('[data-shop-open]').forEach(button=>button.addEventListener('click',()=>openDojo()));
+$$('[data-shop-close]').forEach(element=>element.addEventListener('click',()=>setShop(false)));
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&shopOpen){event.preventDefault();setShop(false);}});
+phone.addEventListener('change',()=>{if(!phone.matches)setShop(false);});
 $$('[data-dojo-scroll]').forEach(button=>button.addEventListener('click',()=>openDojo()));
 $('#goal-card').addEventListener('click',()=>{const goal=currentGoal(state);if(goal.action==='combat'){if(!audio.playing)play();else toast('Le sac renforcé arrive à la prochaine épreuve.');}else openDojo(goal.action==='legacy'?'legacy':'school');});
 $$('.upgrade').forEach(button=>button.addEventListener('click',()=>{
@@ -701,13 +734,30 @@ function drawNotes(time){
   else{delete button.dataset.event;delete button.dataset.time;}
   $$('#beat-meter i').forEach((dot,index)=>dot.classList.toggle('lit',Boolean(lastBeatPulse&&lastBeatPulse.index%8===index&&clock-lastBeatPulse.songTime>=0&&clock-lastBeatPulse.songTime<.14)));
 }
+// The next note still to be played (resolved and expired ones skipped): Nova prepares for it so contact lands on it.
+function comingNote(clock){
+  for(let index=Math.max(lastExpired+1,rhythm.lowerBound(clock-.15)),tries=0;tries<6;index++,tries++){
+    const event=rhythm.event(index);if(!event)return null;
+    if(!resolved.has(index)&&event.time>clock-.12)return event;
+  }
+  return null;
+}
+// Local energy of the song, 0 to 1: loudness from the stored waveform when the track has one, plus the density and strength of nearby notes.
+function songEnergy(clock){
+  let sum=0;for(const note of rhythm.upcoming(clock,1.5,1.5))sum+=note.strength??.6;
+  const notes=Math.min(1,sum/5.4),track=library.current,wave=track?.analysis?.waveform;
+  if(!wave?.length||!(track.duration>0))return notes;
+  const centre=Math.floor(clock/track.duration*wave.length),radius=Math.max(1,Math.round(wave.length/track.duration*.75));let loud=0,count=0;
+  for(let i=Math.max(0,centre-radius);i<Math.min(wave.length,centre+radius);i++){loud+=wave[i];count++;}
+  return .4*notes+.6*Math.min(1,count?loud/count/.7:0);
+}
 function frame(now){
   lastFrame=now;
   if(!document.hidden){
     const boost=flow.active&&audio.playing,time=audio.audibleTime(now),clock=time-settings.latency/1000;
-    if(autoEnabled&&audio.playing&&!sessionMenuOpen&&!$$('dialog[open]').length){const event=autoStriker.take(rhythm,clock);if(event)void act(now,event);}
+    if(autoEnabled&&audio.playing&&!sessionMenuOpen&&!shopOpen&&!$$('dialog[open]').length){const event=autoStriker.take(rhythm,clock);if(event)void act(now,event);}
     if(audio.playing)tickHold(clock,now);
-    if(audio.playing&&!sessionMenuOpen&&!$$('dialog[open]').length&&settings.rhythmMode==='tempo'){
+    if(audio.playing&&!sessionMenuOpen&&!shopOpen&&!$$('dialog[open]').length&&settings.rhythmMode==='tempo'){
       let expired;
       while((expired=rhythm.event(lastExpired+1))&&clock>expired.time+rhythm.windows(expired,state.upgrades.focus).good){
         if(!resolved.has(expired.index)){song.missed++;judgeFlash('miss');if(combo>0){breakCombo();$('#timing-text').textContent='REPRENDS LE FLOW';}}
@@ -719,8 +769,10 @@ function frame(now){
     editor.tick(now);coach.tick();
     const nearest=rhythm.nearest(clock),distance=settings.rhythmMode==='tempo'&&nearest?Math.abs(nearest.time-clock):1;
     const disciples=students(state);
-    const next=rhythm.next('punch',clock),preparation=!sessionMenuOpen&&audio.playing&&settings.rhythmMode==='tempo'&&next?Math.max(0,1-(next.time-clock)/.16):0;
-    scene.render(now,{venueArt:venueOf(state).art,venue:state.venue,combo,upcomingMove:next?learnedMove(techniqueFor(next.index),combo+1,state.highestStage,next.index):'punch',arenaVisible:!sessionMenuOpen,lit:state.dojoLit,playing:audio.playing,beatPhase:distance,preparation,dance:danceEnabled&&audio.playing&&!sessionMenuOpen,musicalBeat:beatPosition(audio.conductor?.beats,time,audio.bpm,audio.offset),flow:boost,tier:dojoTier(state),disciples,boss:rival(state.stage).boss});
+    const next=!sessionMenuOpen&&audio.playing&&(settings.rhythmMode==='tempo'||autoEnabled)?comingNote(clock):null;
+    const preparation=next?(next.time>=clock?Math.max(0,1-(next.time-clock)/.19):Math.max(0,1+(next.time-clock)/.12)):0;
+    energy+=((audio.playing?songEnergy(clock):.35)-energy)*(1-Math.exp(-(now-lastEnergyAt)/500));lastEnergyAt=now;
+    scene.render(now,{energy,venueArt:venueOf(state).art,venue:state.venue,combo,upcomingMove:next?learnedMove(techniqueFor(next.index,armedTechnique),combo+1,state.highestStage,next.index):'punch',arenaVisible:!sessionMenuOpen,lit:state.dojoLit,playing:audio.playing,beatPhase:distance,preparation,dance:danceEnabled&&audio.playing&&!sessionMenuOpen,musicalBeat:beatPosition(audio.conductor?.beats,time,audio.bpm,audio.offset),flow:boost,tier:dojoTier(state),disciples,boss:rival(state.stage).boss});
     if(now-lastPaint>=100){updateUI();lastPaint=now;}
   }
   requestAnimationFrame(frame);

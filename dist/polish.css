@@ -1,0 +1,39 @@
+/* Strike feedback sits in the free space left of Nova, not on top of him. */
+.combat-layout .combat-feedback{left:22%;top:30%!important}
+
+/* Wallet: the takings line lights up briefly when a purchase raises it (0 → 1,2). */
+.income-rate,.coin-counter small{transition:color .2s}
+.income-up{color:#7ff0b0!important;animation:income-up 1.6s ease-out}
+@keyframes income-up{0%,30%{transform:scale(1.15)}100%{transform:none}}
+
+/* Shop rows: the benefit and the price read at a glance. */
+.perk .perk-gain{color:#2f6f4f;font-weight:800}
+.perk em b{font:900 italic 15px var(--display);color:var(--ink)}
+
+/* Boutique panel: only a sheet on phones; the desktop keeps the shop on the right. */
+.shop-toggle,.sheet-bar,.shop-backdrop{display:none}
+@media(max-width:700px){
+  /* The note lane hugs the left edge so Nova and the bag share the stage and the strikes connect. */
+  .combat-layout .target-pair{left:6px;left:max(6px,env(safe-area-inset-left))}
+  .combat-layout .bag-hitbox{left:calc(var(--rail) + 14px);width:auto;right:0;top:16%;height:84%}
+  .combat-layout .combo-badge{left:calc(var(--rail) + 16px)}
+  .combat-layout .combat-feedback{left:62%;top:78%!important;width:60%}
+
+  #battle-card .shop-toggle{display:inline-flex;align-items:center;justify-self:start;min-height:44px;padding:0 14px;border:2px solid var(--ink);background:var(--gold);color:var(--ink);font:900 italic 15px var(--display);box-shadow:3px 3px 0 #0006}
+  #battle-card .shop-toggle.affordable{animation:shop-ready 1.4s ease-in-out infinite alternate}
+  @keyframes shop-ready{to{box-shadow:3px 3px 0 #0006,0 0 0 4px #ffd36b88}}
+
+  /* The sticky wallet stays above the panel and its backdrop, so balance and takings remain in view. */
+  body.shop-open .topbar{z-index:62}
+  body.shop-open .dojo-sidebar{display:block!important;position:fixed;z-index:61;left:0;right:0;top:auto;bottom:0;height:auto;min-height:0;max-height:calc(100svh - 72px - env(safe-area-inset-top));overflow:auto;overscroll-behavior:contain;
+    border-radius:16px 16px 0 0;padding:0 max(12px,env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));box-shadow:0 -14px 40px #000a;animation:sheet-in .22s ease-out}
+  body.shop-open .shop-backdrop{display:block;position:fixed;inset:0;z-index:60;background:#08121499}
+  body.shop-open .mobile-nav{z-index:20}
+  .sheet-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:2;margin:0 -12px 8px;padding:10px 12px;background:inherit;border-bottom:2px solid var(--ink)}
+  .sheet-bar strong{font:900 italic 22px var(--display);color:var(--ink)}
+  .sheet-close{min-height:44px;padding:0 14px;border:2px solid var(--ink);background:var(--ink);color:var(--paper);font:800 13px var(--font)}
+  @keyframes sheet-in{from{transform:translateY(100%)}}
+}
+@media(prefers-reduced-motion:reduce){
+  body.shop-open .dojo-sidebar,#battle-card .shop-toggle.affordable,.income-up{animation:none}
+}
