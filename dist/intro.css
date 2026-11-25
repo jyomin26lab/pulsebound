@@ -1,0 +1,27 @@
+/* Opening film: black, Nova's silhouette against an ember glow, the title, black again, then the game (intro.mjs). It hides by itself if the script never runs. */
+#intro{--tall:min(68svh,700px);position:fixed;inset:0;z-index:2147483600;overflow:hidden;background:#000;touch-action:none;animation:intro-failsafe 1ms 15s forwards}
+@keyframes intro-failsafe{from,to{visibility:hidden}}
+html:has(#intro.on){overflow:hidden;scrollbar-gutter:stable;background:#000}
+.intro-stage{position:absolute;inset:0;transition:opacity .45s}
+#intro.leave .intro-stage{opacity:0}
+.intro-nova{position:absolute;inset:0;height:var(--tall);margin:auto;opacity:0}
+.intro-nova::before{content:'';position:absolute;top:calc(var(--tall)*-.22);left:calc(50% - var(--tall)*.58);width:calc(var(--tall)*1.16);height:calc(var(--tall)*1.16);background:radial-gradient(closest-side,#ed8541,#c8632ac4 36%,#7a35148a 62%,transparent);opacity:.72}
+.intro-nova img{position:absolute;left:50%;top:0;width:auto;height:100%;max-width:none;margin-left:calc(var(--tall)*-.29);filter:brightness(0)}
+.intro-title{position:absolute;inset:calc(50% + var(--tall)*.2) 0 auto;margin:0;text-align:center;opacity:0;font:900 italic clamp(50px,min(17.5vw,24svh),150px)/.9 var(--display);letter-spacing:-.02em;color:var(--paper);filter:drop-shadow(0 3px 9px #000)}
+.intro-title span{color:var(--ember)}
+.intro-embers{position:absolute;inset:0;opacity:0;background:radial-gradient(circle at 9% 30%,#ffbf4c 1.5px,transparent 2.2px),radial-gradient(circle at 16% 71%,#ed8541 2px,transparent 2.7px),radial-gradient(circle at 23% 46%,#fff1c1 1px,transparent 1.7px),radial-gradient(circle at 29% 18%,#ed8541 1.6px,transparent 2.3px),radial-gradient(circle at 34% 80%,#ffbf4c 1.4px,transparent 2.1px),radial-gradient(circle at 41% 33%,#fff1c1 1.1px,transparent 1.8px),radial-gradient(circle at 47% 69%,#ed8541 2.1px,transparent 2.8px),radial-gradient(circle at 54% 22%,#ffbf4c 1.7px,transparent 2.4px),radial-gradient(circle at 61% 77%,#fff1c1 1.2px,transparent 1.9px),radial-gradient(circle at 66% 38%,#ed8541 1.5px,transparent 2.2px),radial-gradient(circle at 73% 64%,#ffbf4c 2px,transparent 2.7px),radial-gradient(circle at 79% 27%,#ed8541 1.2px,transparent 1.9px),radial-gradient(circle at 86% 52%,#fff1c1 1px,transparent 1.7px),radial-gradient(circle at 92% 74%,#ffbf4c 1.5px,transparent 2.2px)}
+#intro-skip{position:absolute;right:calc(10px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));min-width:88px;min-height:44px;border:0;background:none;color:var(--paper);font:700 14px var(--font)}
+#intro-skip:not(:focus-visible){opacity:0}/* a tap anywhere skips: the button only shows to keyboards */
+@media(prefers-reduced-motion:no-preference){
+  #intro.play .intro-nova{animation:intro-appear 1.5s .25s ease-out both}
+  #intro.play .intro-nova::before{animation:intro-beat .54s 1.75s 3 both}
+  #intro.play .intro-title{animation:intro-slam 1.9s 2.83s cubic-bezier(.15,.85,.25,1) both}
+  #intro.play .intro-embers{animation:intro-embers 2s 2.9s ease-out both}
+  body:not(.calm-fx) #intro.play .intro-stage{animation:intro-shake .34s 2.99s}
+}
+@media(prefers-reduced-motion:reduce){#intro.play .intro-nova,#intro.play .intro-title{opacity:1}}
+@keyframes intro-appear{from{opacity:0;transform:scale(1.07)}to{opacity:1;transform:none}}
+@keyframes intro-beat{0%,100%{opacity:.72;transform:none}16%{opacity:1;transform:scale(1.08)}}
+@keyframes intro-slam{0%{opacity:0;transform:scale(2.2)}9%{opacity:1;transform:scale(.97)}15%{transform:scale(1)}100%{opacity:1;transform:scale(1.02)}}
+@keyframes intro-embers{0%{opacity:0;transform:scale(.8)}12%{opacity:1}100%{opacity:.5;transform:translateY(-52px) scale(1.08)}}
+@keyframes intro-shake{0%,100%{transform:none}20%{transform:translate(7px,-4px)}45%{transform:translate(-6px,4px)}70%{transform:translate(3px,-2px)}}

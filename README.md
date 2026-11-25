@@ -8,6 +8,8 @@ Jeu incrémental musical en JavaScript/Web Audio, sans dépendances. Nova frappe
 
 Node.js 20+ : lancer node serve.mjs, puis ouvrir http://127.0.0.1:4173.
 
+Le jeu s’ouvre sur une courte intro en fondu noir : la silhouette de Nova, puis le titre. Un toucher ou une touche la passe, et l’image reste fixe quand les mouvements sont réduits.
+
 Avant de commencer, composer sa playlist et écouter un titre, puis choisir **Rythme**, **Freestyle** ou **Duel** et Jouer. D / F / Espace, le sac ou le grand repère déclenchent une frappe. Les améliorations sont en icônes au-dessus de la boutique.
 
 En mode rythmique, les prochains coups défilent vers le grand repère fixe : frapper à leur arrivée. Une frappe juste avant la fenêtre perd la note et le combo : marteler ne remplace pas l’écoute. Détente garde moins de notes : un temps sur deux sur les titres importés. La précision construit le combo et le Flow ; les enchaînements de 8/16/32/64/128 coups ont leur retour visuel et sonore. En Freestyle, frapper librement, sans jugement de tempo ni notes imposées. Les gains sont pondérés par le temps couvert pour limiter l’avantage du spam ou des chansons très rapides.

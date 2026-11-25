@@ -16,4 +16,8 @@ assert.ok(!ids.includes('session-score')&&!ids.includes('song-record'));assert.o
 for(const [id,meta]of Object.entries(SPRITES)){assert.ok(meta.hatWidth>200&&meta.cornerAlpha===0);const data=fs.readFileSync(new URL('./art/sprites/'+id+'.png',import.meta.url));assert.equal(data.readUInt32BE(16),meta.width);assert.equal(data.readUInt32BE(20),meta.height);}
 assert.equal(Object.keys(SPRITES).length,9);
 const dist=new URL('./dist/',import.meta.url);for(const file of fs.readdirSync(dist).filter(name=>name.endsWith('.css')))for(const [rule,size]of fs.readFileSync(new URL(file,dist),'utf8').matchAll(/font(?:-size)?:[^;{}]*?(\d*\.?\d+)px/g))assert.ok(+size>=12,'Texte sous 12 px dans '+file+' : '+rule);
+const css=fs.readFileSync(new URL('intro.css',dist),'utf8');
+assert.match(html,/<body>\s*<section id="intro"[\s\S]*?<button type="button" id="intro-skip">Passer<\/button>\s*<\/section>/,'L’intro ouvre la page et se passe');
+assert.ok(/#intro\{[^}]*animation:intro-failsafe 1ms 15s forwards/.test(css)&&css.includes('@keyframes intro-failsafe{from,to{visibility:hidden}}'),'Sans son script, l’intro s’efface et le jeu reste accessible');
+assert.ok(!/animation/.test(css.split('@media(prefers-reduced-motion:reduce)')[1].split('@keyframes')[0]),'Mouvements réduits : une image fixe');
 console.log('UX : pièces au premier plan, calage à 70 s sans intro vide, validation, alignement local et 9 PNG séparés vérifiés.');
