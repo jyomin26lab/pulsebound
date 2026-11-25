@@ -1,4 +1,4 @@
-Sprites individuels créés avec Imagegen intégré. Les neuf PNG sont dans dist/sprites/. Les poses de danse ont un sourire en coin. Le canvas utilise les images entières et un manifeste d’alignement, sans modifier les PNG.
+Sprites individuels créés avec Imagegen intégré. Les neuf PNG d’origine sont dans art/sprites/ ; le jeu charge leurs versions allégées `dist/sprites/mobile-*.webp`. Les poses de danse ont un sourire en coin. Le canvas utilise les images entières et un manifeste d’alignement, sans modifier les PNG.
 
 ## idle
 

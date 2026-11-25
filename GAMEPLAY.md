@@ -27,11 +27,11 @@ Le sac est dessiné en polygones et suspendu par des chaînes. Une impulsion ana
 
 Les sons d’impact, achats, paliers, Flow et transmission sont synthétisés localement. La musique personnelle reste au premier plan. Deux réglages contrôlent les sons et l’intensité visuelle ; le réglage système de réduction des mouvements désactive les secousses et particules.
 
-L’école reste à droite sur ordinateur. Sous 981 px, elle passe sous la session. Le bouton « Mon école » permet d’y accéder rapidement. Les trois améliorations sont en icônes au-dessus de la boutique. Les deux onglets école/transmission sont utilisables au clavier. Les achats ne mettent pas la musique en pause. Les trophées apparaissent dans une petite notification sans interrompre le morceau. La réserve et le revenu automatique remplacent le score. Le solde reste visible dans le bandeau fixe en haut de la page.
+L’école reste à droite sur ordinateur. Sous 981 px, elle passe sous la session, et sur téléphone elle s’ouvre dans la Boutique. Les trois améliorations sont en icônes au-dessus de la boutique. Les deux onglets école/transmission sont utilisables au clavier. Les achats ne mettent pas la musique en pause. Les trophées apparaissent dans une petite notification sans interrompre le morceau. La réserve et le revenu automatique remplacent le score. Le solde reste visible dans le bandeau fixe en haut de la page.
 
 ## Vérifications
 
-Douze scripts Node vérifient les règles, le transport, les onsets et beats, la migration, les trois producteurs, tous les paliers, les trophées uniques, le prestige, la pause du Flow, les protections des imports, les revenus directs et le guide de calage. La simulation économique actualisée et les prix sont documentés dans UX-PROGRESSION.md ; ce modèle ne constitue pas une mesure d’engagement réel.
+Les 17 scripts `check*.mjs` vérifient les règles, le transport, les onsets et beats, la migration, les trois producteurs, tous les paliers, les trophées uniques, le prestige, la pause du Flow, les protections des imports, les revenus directs et le guide de calage. La simulation économique actualisée et les prix sont documentés dans UX-PROGRESSION.md ; ce modèle ne constitue pas une mesure d’engagement réel.
 
 Les essais navigateur ont couvert frappe clavier et clic, Flow, sac renforcé, achat pendant la lecture, pause/reprise, import de sauvegarde et transmission. Un aperçu séparé sur le port 4174 a servi aux essais de transmission pour préserver la session de l’utilisateur. Le rendu à 390 px ne déborde pas horizontalement.
 
@@ -39,4 +39,4 @@ Pas de campagne de tests sur plusieurs jours, de mesure Bluetooth ou de comparai
 
 ## Playlist et retour au dojo
 
-Les copies musicales et le calage par chanson persistent localement dans IndexedDB. L’éditeur propose une forme d’onde, des sections à BPM variable et une carte JSON exportable. La fenêtre de retour affiche la récompense d’absence, déjà créditée et sauvegardée pour éviter un double gain. Les impacts PCM ont six variantes et un volume indépendant ; le décor flouté est mis en cache.
+Les copies musicales et le calage par chanson persistent localement dans IndexedDB. L’éditeur propose une forme d’onde, des sections à BPM variable et une carte JSON exportable. Les impacts PCM ont six variantes et un volume indépendant ; le décor flouté est mis en cache.

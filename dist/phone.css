@@ -3,7 +3,7 @@
 #coins,#session-coins,#shop-coins,.income-rate,#session-income,#slot-detail,#goal-detail,.perk em,.upgrade-copy em{font-variant-numeric:tabular-nums}
 /* Prices stay in the plain, readable face even where titles are stylised. */
 .perk em,.upgrade-copy em,#slot-detail,#goal-detail{font-family:var(--font);font-style:normal;font-weight:800}
-.upgrade-effect{display:block;margin-top:2px;font:800 11px/1.2 var(--font);color:#2f6f4f}
+.upgrade-effect{display:block;margin-top:2px;font:800 12px/1.2 var(--font);color:#2f6f4f}
 
 /* Timing marks in turquoise, each with a shape or symbol as well as a colour. */
 #strike-button::before{border-color:#1f6f6c}
@@ -25,14 +25,15 @@
 .retry-import{display:inline-flex;align-items:center;min-height:44px;margin:6px 0 0;padding:0 14px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);font:800 13px var(--font);cursor:pointer}
 .retry-import[hidden]{display:none}
 .playlist-action.listen,.playlist-action.play{font:800 12px var(--font)}
+.playlist-action.play{width:auto;flex-basis:auto;padding-inline:8px}
 
 /* Auto strike: its name and its state (OFF / ON / PAUSE) are written, not only coloured. */
 #auto-strike{display:inline-flex;align-items:center;gap:8px}
-#auto-strike b{min-width:3.4em;padding:2px 6px;border:2px solid currentColor;border-radius:6px;font:800 11px var(--font);text-align:center}
+#auto-strike b{min-width:3.4em;padding:2px 6px;border:2px solid currentColor;border-radius:6px;font:800 12px var(--font);text-align:center}
 #auto-strike[aria-pressed=true] b{background:var(--timing);border-color:var(--timing-ink);color:var(--timing-ink)}
 
 /* Trophies and notices never land on the strike controls: bottom right on desktop, under the band on phones. */
-@media(min-width:701px){.trophy-popup{left:auto;right:24px;transform:none}}
+@media(min-width:701px){.trophy-popup{left:auto;right:24px;width:355px;transform:none}}
 
 .band-button,#recruit-slot{display:none}
 @media(max-width:700px){
@@ -54,7 +55,7 @@
   body.in-session .topbar .wallet>span:first-child{grid-row:1/3}
   body.in-session .topbar .wallet>span:first-child,body.in-session .topbar .wallet img{width:28px;height:28px}
   body.in-session .topbar .wallet strong{font:900 22px/1.05 var(--font);color:var(--gold)}
-  body.in-session .topbar .wallet .wallet-unit{font:800 10px var(--font);text-transform:uppercase;color:var(--paper)}
+  body.in-session .topbar .wallet .wallet-unit{font:800 12px var(--font);text-transform:uppercase;color:var(--paper)}
   body.in-session .topbar .wallet .income-rate{grid-column:2/4;font:700 12px/1.2 var(--font);color:#d8efe9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   body.in-session .band-button{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;border:2px solid #cfe0d4;border-radius:10px;background:#183a3f;color:#fff6dc}
   body.in-session .band-button svg{width:22px;height:22px}
@@ -64,12 +65,12 @@
   body.in-session #battle-card>.earnings-bar{order:1;display:flex;align-items:center;gap:8px;flex:0 0 auto;min-height:54px;padding:5px max(10px,env(safe-area-inset-right)) 5px max(10px,env(safe-area-inset-left))}
   body.in-session #battle-card .coin-counter,body.in-session #restart-session{display:none}
   body.in-session #battle-card .shop-toggle{flex:0 0 auto;min-height:44px}
-  body.in-session #recruit-slot{display:grid;grid-template-columns:1fr;align-content:center;gap:3px;flex:1;min-width:0;min-height:44px;padding:4px 10px;
+  body.in-session #recruit-slot{display:grid;grid-template-columns:minmax(0,1fr);align-content:center;gap:3px;flex:1;min-width:0;min-height:44px;padding:4px 10px;
     border:2px solid #cdb67a;background:#2a2320;color:#fff1c1;text-align:left;touch-action:manipulation}
   #recruit-slot .slot-copy,#recruit-slot .slot-track{display:block}
   #recruit-slot strong,#recruit-slot small{display:block}
   #recruit-slot strong{color:inherit;font:900 italic 15px/1.1 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #recruit-slot small{font-size:11px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e9dcb7}
+  #recruit-slot small{font-size:12px;line-height:1.2;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e9dcb7}
   #recruit-slot .slot-track{height:4px;background:#ffffff22}
   #recruit-slot .slot-track i{display:block;height:100%;background:var(--gold)}
   body.in-session #recruit-slot.ready{border:3px solid var(--ink);background:var(--gold);color:var(--ink);box-shadow:3px 3px 0 #0007}
@@ -80,7 +81,8 @@
   /* The stage takes every pixel left; the lane runs across under the bag. */
   body.in-session .combat-layout{order:2;display:flex;flex-direction:column;flex:1 1 auto;min-height:0;height:auto;position:relative}
   body.in-session .combat-layout #arena{order:1;flex:1 1 auto;min-height:0;height:auto}
-  body.in-session .combat-layout .battle-hud{inset:8px 8px auto}
+  body.in-session .combat-layout .battle-hud{inset:8px 8px auto;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+  .round-label>span,.rival-tag{letter-spacing:0}
   body.in-session .combat-layout .bag-hitbox{left:52%;right:0;width:auto;top:12%;height:80%}
   body.in-session .combat-layout .combat-feedback{left:50%;top:30%!important;width:70%;font-size:18px}
   body.in-session .combat-layout .target-pair{order:2;position:relative;inset:auto;flex:0 0 clamp(56px,9dvh,72px);width:100%;height:auto;margin:0;padding:0;
@@ -106,9 +108,9 @@
   body.in-session [data-impact-style],body.in-session #flow-status{display:none!important}
   body.in-session .rhythm-heading .combo-badge>strong,body.in-session .rhythm-heading .combo-badge>span{color:#fff1c1}
   body.in-session .flow-panel{flex:1;min-width:0;margin:0!important;width:auto!important;padding:0;border:0;background:none}
-  body.in-session .flow-panel>div:first-child span{font-size:10px;color:#fff1c1}
+  body.in-session .flow-panel>div:first-child span{font-size:12px;color:#fff1c1}
   body.in-session .flow-panel img{width:18px;height:18px}
-  body.in-session .rhythm-deck #auto-strike{flex:0 0 auto;width:auto;min-height:44px;padding:0 10px;border:2px solid #cfe0d4;border-radius:10px;background:#183a3f;color:#fff6dc;font:800 11px var(--font)}
+  body.in-session .rhythm-deck #auto-strike{flex:0 0 auto;width:auto;min-height:44px;padding:0 10px;border:2px solid #cfe0d4;border-radius:10px;background:#183a3f;color:#fff6dc;font:800 12px var(--font)}
 
   /* The strike pad: wide enough for either thumb, above the home indicator, never moved by anything else. */
   body.in-session #battle-card #mobile-strike{order:4;flex:0 0 clamp(88px,15dvh,136px);width:auto;min-height:0;
@@ -123,6 +125,24 @@
 
   /* Shop sheet: under the band, so balance and takings stay in view while buying. */
   body.shop-open .dojo-sidebar{max-height:calc(var(--app-h,100svh) - var(--band) - 6px)!important}
+}
+@media(max-width:980px),(max-height:500px){
+  /* In a session a trophy is a strip, over the purchases row on phones and over the top bar on tablets and phones held sideways: never on the stage. */
+  body.in-session .trophy-popup{top:calc(var(--band) + 2px);left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:auto;width:auto;height:48px;transform:none;gap:8px;padding:0 50px 0 8px;border-width:2px;box-shadow:none}
+  body.in-session .trophy-popup>img{width:34px;height:34px}
+  body.in-session .trophy-popup>div{display:grid;grid-template-columns:minmax(0,auto) auto;justify-content:start;align-items:baseline;column-gap:8px;min-width:0}
+  body.in-session .trophy-popup small{line-height:1.1}
+  body.in-session .trophy-popup p{display:none}
+  body.in-session .trophy-popup strong{grid-row:2;grid-column:1/-1;margin:0;font-size:17px;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  body.in-session .trophy-popup b{margin:0;line-height:1.1;white-space:nowrap}
+  body.in-session .trophy-popup>button{top:0;right:0;width:44px;height:44px}
+}
+@media(min-width:701px) and (max-width:980px),(min-width:701px) and (max-height:500px){body.in-session .trophy-popup{top:12px;right:auto;width:355px}}
+@media(max-width:360px){
+  body.in-session .rhythm-deck{gap:8px}
+  body.in-session .rhythm-heading .combo-badge>span{letter-spacing:0}
+  body.in-session .rhythm-deck #auto-strike{gap:5px;padding:0 6px}
+  #auto-strike>i{display:none}
 }
 @media(max-width:700px) and (max-height:600px){
   body.in-session #battle-card>.earnings-bar{min-height:50px;padding-block:3px}

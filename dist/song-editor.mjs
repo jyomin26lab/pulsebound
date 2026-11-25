@@ -79,7 +79,7 @@ export class SongEditor {
     const c=this.canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,width,height);c.fillStyle='#19373b';c.fillRect(0,0,width,height);
     this.start=Math.max(0,Math.min(Math.max(0,this.track.duration-this.zoom),this.cursor-this.zoom*.3));
     const x=t=>(t-this.start)/this.zoom*width,chart=this.chart();
-    c.strokeStyle='#a8c4bc33';c.fillStyle='#a8c4bc';c.font='10px sans-serif';
+    c.strokeStyle='#a8c4bc33';c.fillStyle='#a8c4bc';c.font='12px sans-serif';
     for(let t=Math.ceil(this.start);t<=this.start+this.zoom;t++){const px=x(t);c.beginPath();c.moveTo(px,20);c.lineTo(px,height);c.stroke();c.fillText(clock(t),px+4,14);}
     const wave=this.track.analysis?.waveform;
     if(Array.isArray(wave)&&wave.length){c.fillStyle='#a1c4ba';for(let px=0;px<width;px+=2){const a=Math.floor((this.start+px/width*this.zoom)/this.track.duration*wave.length),b=Math.ceil((this.start+(px+2)/width*this.zoom)/this.track.duration*wave.length);let peak=0;for(let i=a;i<=b;i++)peak=Math.max(peak,wave[i]||0);const h=peak*65;c.fillRect(px,113-h,1.5,Math.max(1,h*2));}}

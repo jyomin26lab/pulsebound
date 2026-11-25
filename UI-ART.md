@@ -17,7 +17,7 @@ Les icônes sont des dessins SVG originaux, réalisés directement en vecteurs p
 | `dist/icons/legacy.svg` | Portique et flamme, transmission |
 | `dist/icons/coin.svg` | Pièce dorée, éclats du dojo |
 
-La planche `dist/icons/collection.svg` rassemble les huit dessins. Les portraits des recrues utilisent une silhouette et un accent distincts ; les techniques restent identifiables par leurs symboles. Les icônes placées dans des boutons dont le texte donne déjà le sens sont décoratives (`alt=""`). Les libellés accessibles des achats, les onglets au clavier et la réduction des mouvements sont conservés.
+La planche `art/collection.svg` rassemble les huit dessins. Les portraits des recrues utilisent une silhouette et un accent distincts ; les techniques restent identifiables par leurs symboles. Les icônes placées dans des boutons dont le texte donne déjà le sens sont décoratives (`alt=""`). Les libellés accessibles des achats, les onglets au clavier et la réduction des mouvements sont conservés.
 
 La mise en page garde les achats à droite sur ordinateur et sous l’arène sur mobile. Une variante compacte conserve les commandes principales dans la fenêtre de jeu lorsque la hauteur du navigateur est réduite. Le rythme, les prix, les sauvegardes et les multiplicateurs ne sont pas modifiés par cette refonte graphique.
 

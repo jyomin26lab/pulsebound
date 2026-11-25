@@ -52,7 +52,7 @@
 .coin-counter strong { justify-content:center; line-height:1; }
 .coin-counter .coin-unit {
   color:var(--paper);
-  font:800 10px var(--font);
+  font:800 12px var(--font);
   text-transform:uppercase;
   letter-spacing:.08em;
 }
@@ -92,12 +92,12 @@
 #strike-button .target-ring {border:2px solid #b45b25;transition:none}
 #strike-button.target-due::before {border:3px solid #174b43;box-shadow:0 0 0 3px #efb734}
 #strike-button>img {display:none}
-#strike-button .strike-idle {font:800 11px var(--font);color:#345351;margin:0}
+#strike-button .strike-idle {font:800 12px var(--font);color:#345351;margin:0}
 #strike-button.target-active .strike-idle {visibility:hidden}
 #strike-button .strike-cue {
   display:none;position:absolute;left:50%;top:-11px;transform:translateX(-50%);
   color:#fff6ce;background:#254b47;border-radius:4px;padding:2px 6px;
-  font:800 10px/1.2 var(--font);white-space:nowrap;
+  font:800 12px/1.2 var(--font);white-space:nowrap;
 }
 #strike-button.target-due .strike-cue {display:block}
 #strike-button:focus-visible {outline:2px solid #275667;outline-offset:0}
@@ -130,11 +130,11 @@
     gap:8px;
   }
   .combat-layout .fighter-name strong {font-size:16px}
-  .combat-layout .hero-mastery {font-size:7px}
+  .combat-layout .hero-mastery {font-size:12px}
   .combat-layout .bag-hitbox {left:72%;width:27%;top:20%;height:53%}
   .combat-layout .combo-badge {left:8px;right:auto;top:auto;bottom:14px;transform:none}
   .combat-layout .combat-feedback {left:80%;top:65%!important;width:38%;font-size:17px}
-  .combat-layout .combat-feedback small {font-size:7px;white-space:normal}
+  .combat-layout .combat-feedback small {font-size:12px;white-space:normal}
   .combat-layout .stage-caption {display:none}
   #battle-card #mobile-strike {
     display:flex;
@@ -155,7 +155,7 @@
     -webkit-tap-highlight-color:transparent;
   }
   #mobile-strike strong {font:900 italic 27px/1 var(--display)}
-  #mobile-strike span {font:700 11px var(--font)}
+  #mobile-strike span {font:700 12px var(--font)}
   #mobile-strike.target-due {background:#ffeab1;box-shadow:inset 0 0 0 4px #bf6b26}
   #mobile-strike:active {background:#ed9d45}
   #mobile-strike:focus-visible {outline:3px solid #fff2c9;outline-offset:-6px}
@@ -165,11 +165,11 @@
   .in-session .combat-controls {display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .in-session .combat-controls #auto-strike {grid-column:1/-1;min-height:44px}
   .in-session .combat-controls button[data-impact-style] {min-height:44px}
-  .in-session .combo-run {padding:8px 0;flex-wrap:wrap;font-size:8px}
+  .in-session .combo-run {padding:8px 0;flex-wrap:wrap;font-size:12px}
   .in-session .combo-run small {display:none}
   #battle-card .earnings-bar {padding:7px 8px}
   #battle-card .coin-counter strong {font-size:26px}
-  #battle-card .coin-counter small {font-size:10px}
+  #battle-card .coin-counter small {font-size:12px}
 }
 
 .density-choice {display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0;font:700 12px var(--font);color:var(--ink)}
@@ -182,7 +182,7 @@
 .rhythm-heading .combo-badge {position:static;display:flex;align-items:center;gap:6px;transform:none;text-shadow:none;flex-shrink:0}
 .rhythm-heading .combo-badge>strong {font-size:26px;color:var(--ink);text-shadow:none}
 .rhythm-heading .combo-badge>strong>span {font-size:16px;color:#a76723}
-.rhythm-heading .combo-badge>span {font-size:8px;color:var(--ink)}
+.rhythm-heading .combo-badge>span {font-size:12px;color:var(--ink)}
 /* Hit/miss feedback on the target: colour plus a symbol, so it also reads without colour vision. */
 #strike-button[data-judge=perfect],#mobile-strike[data-judge=perfect]{--judge:#efb734}
 #strike-button[data-judge=good],#mobile-strike[data-judge=good]{--judge:#2f9e6b}
@@ -200,6 +200,7 @@
 @media(prefers-reduced-motion:reduce){#strike-button.judged::after{animation-name:judge-fade}@keyframes judge-fade{from{opacity:1}to{opacity:0}}}
 /* End-of-song card: the record line pops so a new best is impossible to miss. */
 .end-stats{margin:18px 0}
+.end-stats .stat-cell strong{font-size:clamp(20px,6.6vw,39px);white-space:nowrap}
 .end-record{margin:14px 0 0;padding:8px 12px;text-align:center;font:900 italic 18px/1.2 var(--display);color:#1b1410;background:var(--gold,#efb734);animation:end-record .6s ease-out}
 @keyframes end-record{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.end-record{animation:none}}
@@ -217,11 +218,12 @@
 .daily-card.done{background:#9fdcbc;border-left-color:#2f9e6b}
 .end-daily{background:#2f9e6b;color:#fff}
 /* Boon pick: three big cards, keyboard and touch friendly. */
+#boon-dialog .eyebrow{display:inline-block;letter-spacing:.5px}
 .boon-choices{display:grid;gap:10px;margin-top:16px}
 .boon-choice{display:grid;gap:3px;text-align:left;padding:14px 16px;border:2px solid var(--ink,#142b30);background:#fff4d6;color:var(--ink,#142b30);box-shadow:4px 4px 0 var(--ink,#142b30);cursor:pointer}
 .boon-choice strong{font:900 italic 20px/1.1 var(--display)}
 .boon-choice span{font:700 13px/1.3 var(--font)}
-.boon-choice small{font:800 10px var(--font);letter-spacing:.6px;color:#b45b25;text-transform:uppercase}
+.boon-choice small{font:800 12px var(--font);letter-spacing:.6px;color:#b45b25;text-transform:uppercase}
 .boon-choice:hover,.boon-choice:focus-visible{background:#ffd36b;outline:3px solid #b45b25;outline-offset:2px}
 /* Seal shop: permanent perks in the transmission tab. */
 .perk-shop{margin:16px 0}
@@ -230,7 +232,7 @@
 .perk{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;padding:10px 12px;border:2px solid var(--ink,#142b30);background:#fff4d6;color:var(--ink,#142b30);cursor:pointer}
 .perk strong{font:900 italic 15px/1.2 var(--display)}
 .perk span{grid-column:1;font:700 12px/1.3 var(--font)}
-.perk em{grid-column:2;grid-row:1/3;align-self:center;font:800 11px var(--font);font-style:normal;white-space:nowrap;color:#b45b25}
+.perk em{grid-column:2;grid-row:1/3;align-self:center;font:800 12px var(--font);font-style:normal;white-space:nowrap;color:#b45b25}
 .perk.owned{border-left:6px solid #2f9e6b}
 .perk:disabled{cursor:default;opacity:.6}
 .perk:not(:disabled):hover,.perk:focus-visible{background:#ffd36b;outline:3px solid #b45b25;outline-offset:2px}
@@ -245,7 +247,7 @@
 @media(prefers-reduced-motion:reduce){.queue-note.finisher{animation:none}}
 /* Mon dojo: venue header; equipment buttons reuse the seal-shop style. */
 .venue-card{margin:12px 0 10px}
-.venue-card small{font:800 11px var(--font);letter-spacing:.6px;color:#b45b25}
+.venue-card small{font:800 12px var(--font);letter-spacing:.6px;color:#b45b25}
 .venue-card h4{margin:2px 0;font:900 italic 22px/1.1 var(--display)}
 #venue-items{margin-bottom:12px}
 .end-takings{background:#254b47;color:#fff6ce}
@@ -255,7 +257,7 @@
 @media(max-width:700px){
   body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
   .mobile-nav{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:#142e32;border-top:3px solid var(--ink);padding-bottom:env(safe-area-inset-bottom)}
-  .mobile-nav button{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:62px;padding:9px 2px 7px;background:none;border:0;color:#cfe0d4;font:800 11px var(--font);-webkit-tap-highlight-color:transparent}
+  .mobile-nav button{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:62px;padding:9px 2px 7px;background:none;border:0;color:#cfe0d4;font:800 12px var(--font);-webkit-tap-highlight-color:transparent}
   .mobile-nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .mobile-nav button[aria-current=true]{color:var(--gold);box-shadow:inset 0 3px 0 var(--gold)}
   body.playing{padding-bottom:0}

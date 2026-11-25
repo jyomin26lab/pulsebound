@@ -1,4 +1,4 @@
-Outil : Imagegen intégré, fond transparent. Asset de jeu : dist/nova-techniques.png, 1254 × 1254, trois colonnes de 418 px et deux rangées de 627 px. Nouvelle feuille ajoutée sans remplacer le personnage original. Identité et style repris de dist/fighters-geometric.png.
+Outil : Imagegen intégré, fond transparent. Planche d’origine, hors du site publié : art/nova-techniques.png, 1254 × 1254, trois colonnes de 418 px et deux rangées de 627 px. Nouvelle feuille ajoutée sans remplacer le personnage original. Identité et style repris de art/fighters-geometric.png.
 
 Rangée 1 : préparation du coup de pied, extension du coup de pied, préparation de l’uppercut. Rangée 2 : extension de l’uppercut, pas de danse gauche, pas de danse droit. Le canvas sélectionne et anime ces poses ; il ne modifie pas les images sources. Les deux nouvelles icônes sont dessinées en SVG, selon le système existant.
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {gridFromTaps,alignBeat,nudgeConfig} from './dist/sync-help.mjs';
 import {createSongChart} from './dist/song-chart.mjs';
-import {SPRITES} from './dist/sprites/manifest.mjs';
+import {SPRITES} from './art/sprites/manifest.mjs';
 import fs from 'node:fs';
 const taps=Array.from({length:8},(_,i)=>70.13+i*.5+(i%2?.004:0)),config=gridFromTaps(taps);assert.ok(config);assert.ok(Math.abs(config.bpm-120)<2);assert.ok(config.offset<60/config.bpm,'Tapping at 70 s never makes a 70 s intro');
 assert.equal(gridFromTaps([1,2]),null);assert.equal(gridFromTaps([0,1,1,2,3,4]),null);assert.equal(gridFromTaps([0,.3,1,1.3,2,2.3,3,3.3]),null);assert.equal(gridFromTaps([0,1,2,NaN,4,5]),null);
@@ -13,6 +13,7 @@ for(let i=0;i<originalChart.beats.length;i++)assert.ok(Math.abs(movedChart.beats
 const chart=createSongChart({duration:120,bpm:120,chart:aligned});assert.ok(chart.beats[0]<.2);assert.ok(chart.beats.some(t=>Math.abs(t-70.14)<.001));
 const html=fs.readFileSync(new URL('./dist/index.html',import.meta.url),'utf8'),ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'No duplicate UI ids');assert.ok(html.indexOf('data-upgrade="power"')<html.indexOf('id="school-panel"'));
 assert.ok(!ids.includes('session-score')&&!ids.includes('song-record'));assert.ok(ids.includes('session-coins')&&ids.includes('income-rate'));
-for(const [id,meta]of Object.entries(SPRITES)){assert.ok(meta.hatWidth>200&&meta.cornerAlpha===0);const data=fs.readFileSync(new URL('./dist/sprites/'+id+'.png',import.meta.url));assert.equal(data.readUInt32BE(16),meta.width);assert.equal(data.readUInt32BE(20),meta.height);}
+for(const [id,meta]of Object.entries(SPRITES)){assert.ok(meta.hatWidth>200&&meta.cornerAlpha===0);const data=fs.readFileSync(new URL('./art/sprites/'+id+'.png',import.meta.url));assert.equal(data.readUInt32BE(16),meta.width);assert.equal(data.readUInt32BE(20),meta.height);}
 assert.equal(Object.keys(SPRITES).length,9);
+const dist=new URL('./dist/',import.meta.url);for(const file of fs.readdirSync(dist).filter(name=>name.endsWith('.css')))for(const [rule,size]of fs.readFileSync(new URL(file,dist),'utf8').matchAll(/font(?:-size)?:[^;{}]*?(\d*\.?\d+)px/g))assert.ok(+size>=12,'Texte sous 12 px dans '+file+' : '+rule);
 console.log('UX : pièces au premier plan, calage à 70 s sans intro vide, validation, alignement local et 9 PNG séparés vérifiés.');

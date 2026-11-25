@@ -21,7 +21,7 @@ Génère **151 images** : 79 icônes d’objets, 34 images de disciples (2 poses
 - **Peu de détails** : formes simples et lisibles, grandes surfaces plates, pas de textures, pas de petits motifs, pas de plis ni de boucles. Si un détail ne se voit pas à 100 px, supprime-le.
 - **Ne sature pas l’écran** : couleurs **sourdes et calmes**, peu saturées (tons terreux, gris chauds, bleus-verts éteints), 3 à 5 couleurs par image, pas de néon, pas de couleur criarde, pas de gros contraste. L’œil doit rester sur Nova et le sac, pas sur les figurants.
 - **Ombres douces et simples** : un seul niveau d’ombre, pas de dégradés, pas de reflets brillants.
-- **Même style que Nova** : illustration 2D de jeu de combat, contour net et fin (même épaisseur partout, couleur sombre chaude `#2a2330`, pas de noir pur). Regarde `dist/sprites/idle.png` et `dist/sprites/disciple-ready.webp`, mais en **plus simple**.
+- **Même style que Nova** : illustration 2D de jeu de combat, contour net et fin (même épaisseur partout, couleur sombre chaude `#2a2330`, pas de noir pur). Regarde `art/sprites/idle.png` et `dist/sprites/disciple-ready.webp`, mais en **plus simple**.
 - **Tout le lot doit paraître venir du même jeu** : même contour, même éclairage (lumière en haut à gauche), même niveau de simplification.
 - Évite : photo, 3D brillante, pixel art, aquarelle, dégradés baveux.
 - Aucun texte, logo, signature, filigrane.

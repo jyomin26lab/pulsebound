@@ -252,7 +252,7 @@ function recruitGain(){const copy=structuredClone(state);copy.coins=Infinity;rec
 function renderGoal(){
   const plan=recruitPlan(state);let label,detail,progress,ready=false;
   if(plan){
-    const missing=plan.cost-state.coins,gain='+'+format(recruitGain())+' pièces / séance';ready=missing<=0;
+    const missing=plan.cost-state.coins,gain='+'+format(recruitGain())+' / séance';ready=missing<=0;
     label=ready?'Recruter · +'+plan.students+' élèves':'Premiers élèves';
     detail=ready?format(plan.cost)+' pièces · '+gain:'Encore '+format(Math.max(.01,missing))+' pièce'+(missing>=2?'s':'')+' · '+gain;progress=state.coins/plan.cost;
   }else{

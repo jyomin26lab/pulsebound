@@ -4,7 +4,7 @@ Interface arcade : les icônes et panneaux de la refonte sont dessinés directem
 
 Version École du brasier : seul Nova apparaît au premier plan. Le sac suspendu et les recrues du fond sont dessinés en polygones dans le canvas ; le sac oscille sous les impacts. Les poses d’esquive et le reflet froid restent dans la feuille source historique, mais ne sont plus utilisés dans le gameplay. Les bannières supplémentaires suivent les paliers du dojo.
 
-Outil : Imagegen intégré. Assets de jeu : `dist/dojo-geometric.png`, `dist/fighters-geometric.png`. Le portrait autonome transparent 1024 × 1536 est livré séparément sous le nom `NOVA-portrait-geometrique.png`.
+Outil : Imagegen intégré. Planches d’origine, hors du site publié : `art/dojo-geometric.png`, `art/fighters-geometric.png`. Le portrait autonome transparent 1024 × 1536 est livré séparément sous le nom `NOVA-portrait-geometrique.png`.
 
 L’identité du personnage provient de la référence fournie : cheveux argentés, béret rouge, tenue ocre/ivoire/bordeaux, écharpe sombre. Le dojo conserve l’ambiance nocturne orange choisie par l’utilisateur. Les poses sont garde, jab, direct et esquive ; la seconde rangée représente son reflet froid.
 
