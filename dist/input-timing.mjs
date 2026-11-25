@@ -14,12 +14,12 @@ export function calibrationResult(errors) {
   return {offset: Math.round(Math.max(-250, Math.min(450, median(kept)))), spread: Math.round(deviation), taps: kept.length};
 }
 
-/** Misses outside the good window leave the note available for a later, accurate tap. */
+/** A tap just before the good window (`early`) spoils its note, so hammering never replaces listening. Further away, the note stays available. */
 export function judgePlayable(rhythm, time, focus, lastExpired, resolved) {
   const candidate = rhythm.playable(time, lastExpired, resolved);
   if (!candidate) return null;
   const error = (time-candidate.time)*1000;
   const window = rhythm.windows(candidate, focus);
-  return {event:candidate,index:candidate.index,error,
-    grade:Math.abs(error)<=window.perfect*1000?'perfect':Math.abs(error)<=window.good*1000?'good':'miss'};
+  const grade=Math.abs(error)<=window.perfect*1000?'perfect':Math.abs(error)<=window.good*1000?'good':'miss';
+  return {event:candidate,index:candidate.index,error,grade,early:grade==='miss'&&error<0&&error>-window.good*1600};
 }

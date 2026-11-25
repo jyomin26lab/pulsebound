@@ -61,6 +61,8 @@ export function createSongChart(track,{density='standard'}={}){
     const wave=analysis.waveform,energy=Array.isArray(wave)?wave[Math.min(wave.length-1,Math.max(0,Math.floor((event.time-shift)/duration*wave.length)))]:1;
     return event.supported||(analysis.beatMap?.confidence||0)>=.5&&energy>.04;
   });
+  // Relaxed keeps one beat out of two, unless the song is slow already.
+  if(density==='relaxed'&&config.bpm>80)events=events.filter(event=>!event.beat||event.index%2===0);
   if(track?.builtin && density==='intense'){
     for(let i=0;i<beats.length-1;i++){
       const accent=demoAccent(track.id,i*2+1);

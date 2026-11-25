@@ -57,8 +57,7 @@ function press(type,stamp){
   const sudden=type==='parry'&&suddenAt(time),first=sudden&&rhythm.upcoming(time,SURPRISE_WARN,.15).find(event=>event.type==='parry'&&event.index>expired&&!resolved.has(event.index));
   if(sudden&&first?.index===sudden.index){decide(sudden,Math.abs(time-sudden.time)<=rhythm.windows(sudden).perfect?'perfect':'good',now);return;}
   const j=judgePlayable(rhythm,time,0,expired,resolved);if(!j)return;
-  // A press just before the window spoils the note, so hammering the pads never replaces listening.
-  if(j.grade==='miss'){if(j.error<0&&j.error>-rhythm.windows(j.event).good*1600)decide(j.event,'miss',now,'TROP TÔT');return;}
+  if(j.grade==='miss'){if(j.early)decide(j.event,'miss',now,'TROP TÔT');return;}
   if(j.event.type!==type){decide(j.event,'miss',now,'MAUVAISE MAIN');return;}
   decide(j.event,j.grade,now);
 }

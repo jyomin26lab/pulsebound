@@ -520,6 +520,7 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
     if(judgment.grade==='miss'){
       $('#timing-text').textContent=judgment.error<0?'TROP TÔT · ATTENDS LE CERCLE':'TROP TARD · PROCHAINE NOTE';
       judgeFlash('miss');
+      if(judgment.early){resolved.add(judgment.index);song.missed++;feedback('TROP TÔT','NOTE PERDUE · ATTENDS LE CERCLE','miss');breakCombo();}
       return;
     }
     resolved.add(judgment.index);lastActionSongTime=audio.time();if(!automated)judgeFlash(judgment.grade);
@@ -543,8 +544,6 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
     audio.hit(judgment.grade,hit.critical,combo,{weight:MOVES[move]?.weight,energy});if(!automated)buzz(hit.critical?30:10);
     if(judgment.event?.hold&&!free&&audio.playing){holding={index:judgment.event.index,end:judgment.event.time+judgment.event.hold,nextTick:judgment.event.time+.18,auto:automated,source:null,ticks:0};feedback('MAINTIENS','RAFALE · GARDE LA TOUCHE ENFONCÉE','perfect');}pulse($('.combo-badge'),'bump');pulse($('#strike-button'),'impact');award();
     if(!free&&!automated&&[8,16,32,64,128].includes(combo)){showMoment('ENCHAÎNEMENT SANS RUPTURE','COMBO ×'+combo,combo>=32?'LE DOJO SUIT TON FLOW.':'CHAQUE COUP TROUVE SA PLACE.','flow');audio.cue('milestone');scene.celebrate('flow');}
-  }else{
-    breakCombo();scene.animate('hero','punch',now);feedback('HORS TEMPO','VISE LE GRAND REPÈRE','miss');
   }
   $('#timing-text').textContent=automated?'FRAPPE AUTO · SYNCHRO':free?'FRAPPE LIBRE':(judgment.grade==='perfect'?'PARFAIT':judgment.error<0?'UN PEU TÔT':'UN PEU TARD')+' · '+Math.round(Math.abs(judgment.error))+' MS';
   updateUI();
