@@ -12,13 +12,15 @@ Révision du 16 novembre 2026 : l’économie par seconde (recrues, gains d’ab
 
 Il n’y a plus de gain pendant l’absence ni de revenu par seconde.
 
+Cinq premières minutes : le premier achat (Sac d’occasion, 3 pièces) amène le premier élève, vers 30 s pour un joueur moyen et 75 s pour un débutant. Le premier morceau finit sur la carte complète (note, recette), puis les dons gagnés s’ouvrent quand on quitte la carte. Frappe auto se débloque avec la première salle.
+
 ## Les 17 dojos
 
 Temps mesurés par `node simulate-progression.mjs` pour un bon joueur (80 % de Parfaits, morceaux de 2 min 30 enchaînés, sans transmission). Un débutant met environ deux fois plus longtemps ; les sceaux accélèrent les écoles suivantes.
 
 | Niveau | Dojo | Prix | Équipements (total) | Élèves | Atteint vers |
 |---:|---|---:|---:|---:|---:|
-| 1 | La Rue | — | 9 | 0 | 0 min |
+| 1 | La Rue | — | 9 | 1 | 0 min |
 | 2 | Salle délabrée | 25 | 70 | 6 | 8 min |
 | 3 | Dojo gymnase | 170 | 467 | 10 | 32 min |
 | 4 | Dojo de quartier | 1 156 | 3 179 | 14 | 1.2 h |

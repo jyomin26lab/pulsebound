@@ -406,14 +406,10 @@ export class DojoScene {
       c.translate(fx+Math.sin(t*43)*shake,fy+Math.cos(t*37)*shake*.6);c.scale(scale,scale);c.translate(-fx,-fy);
     }
     c.fillStyle='#29232b';c.fillRect(0,0,w,h);
-    const reveal=this.motion?Math.min(1,Math.max(0,(now-(this.litAt??-2000))/1200)):1;
     // The current venue's picture replaces the default dojo as soon as the file exists (see VENUES-ART.md).
     if(this.venueArtPath!==venueArt){this.venueArtPath=venueArt;this.venueImage=venueArt?Object.assign(new Image(),{src:new URL('./'+venueArt,import.meta.url).href}):null;}
     if(this.venueImage?.naturalWidth)this.drawRoom(this.venueImage);
-    else{
-      if(!lit || reveal<1 || !this.rooms[1].naturalWidth)this.drawRoom(this.rooms[0]);
-      if(lit){c.save();c.globalAlpha=reveal;this.drawRoom(this.rooms[1]);c.restore();}
-    }
+    else this.drawRoom(this.rooms[lit&&this.rooms[1].naturalWidth?1:0]);
     c.fillStyle=boss?'#41172a25':'#130d170e';c.fillRect(0,0,w,h);
     this.details(tier,now,playing?beatPhase:1);this.trainees(now,disciples,playing?musicalBeat:now/650,venue);
     const comboLevel=comboTier(combo);

@@ -6,7 +6,7 @@ Un sac de frappe, une seule action et une école qui grandit. Le dojo conserve l
 
 1. Une bonne frappe rapporte des dégâts et des pièces immédiatement. Un sac brisé ajoute une récompense.
 2. Chaque sac brisé amène un fan (deux pendant le Flow). À la fin de chaque morceau, le dojo verse une recette : pourboires des fans et frais des élèves, multipliés par le confort, la note du morceau (S ×2, A ×1,5, B ×1,2), les sceaux, les dons et la dimension.
-3. Nova part de la Rue. Chaque dojo a ses équipements (élèves et confort) ; une fois tout installé, il peut s’agrandir vers le suivant : 17 niveaux, de la Rue à la planète alien. Les poings améliorent les dégâts.
+3. Nova part de la Rue, où le Sac d’occasion amène son premier élève. La première salle débloque Frappe auto. Chaque dojo a ses équipements (élèves et confort) ; une fois tout installé, il peut s’agrandir vers le suivant : 17 niveaux, de la Rue à la planète alien. Les poings améliorent les dégâts.
 4. Les succès attribuent leur prime une seule fois et l’objectif principal oriente vers le prochain déblocage.
 5. Tous les cinq niveaux, un sac renforcé possède trois fois la résistance et rapporte quatre fois la prime du niveau.
 6. Du niveau 2 au niveau 7, avec 12 000 pièces gagnées dans l’école, une transmission donne `floor(sqrt(pièces_de_l’école / 12000))` sceaux. Chaque sceau ajoute 20 % de puissance. Le récapitulatif explique le redémarrage avant confirmation. Au niveau 17 entièrement équipé, le saut de dimension renvoie dans la Rue avec des recettes ×2 pour toujours.

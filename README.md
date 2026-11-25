@@ -27,7 +27,7 @@ L’analyse est heuristique : elle ne sépare pas les instruments et ne transcri
 
 ## Progression et ressenti
 
-Nova commence dans la Rue et monte 17 dojos, jusqu’à une planète alien : il équipe chaque salle objet par objet, puis l’agrandit. Frappes et sacs brisés rapportent des pièces ; chaque sac brisé amène un fan ; élèves et fans paient une recette à la fin de chaque morceau, multipliée par la note. Transmission possible du niveau 2 au niveau 7, saut de dimension au niveau 17. Voir UX-PROGRESSION.md. Le Flow dure 32 temps et se fige en pause. Voir GAMEPLAY.md.
+Nova commence dans la Rue et monte 17 dojos, jusqu’à une planète alien : il équipe chaque salle objet par objet, puis l’agrandit. Frappes et sacs brisés rapportent des pièces ; chaque sac brisé amène un fan ; élèves et fans paient une recette à la fin de chaque morceau, multipliée par la note, dès le premier morceau. Le Sac d’occasion (3 pièces, dans la Rue) amène le premier élève. Transmission possible du niveau 2 au niveau 7, saut de dimension au niveau 17. Voir UX-PROGRESSION.md. Le Flow dure 32 temps et se fige en pause. Voir GAMEPLAY.md.
 
 Les impacts PCM superposent attaque, grain et grave : trois variantes normales, trois critiques, légère variation de hauteur et limite de voix simultanées. Musique et impacts ont leurs volumes indépendants. Le décor est légèrement flouté dans un cache redessiné au chargement/redimensionnement ; personnage, sac et UI restent nets. La réduction des mouvements est respectée.
 
@@ -47,7 +47,7 @@ L’import et la sélection préparent le contexte audio sans appeler resume. Se
 
 ## Frappes Auto et techniques
 
-Auto suit la carte des notes pendant la lecture, en Rythme et en Freestyle. Il se fige en pause, dans le menu ou en arrière-plan. Son curseur lit l’horloge audio : une chute de framerate saute les notes anciennes sans rafale. Auto rapporte dégâts/pièces et charge le Flow comme une frappe Bien ; il ne compte pas comme une frappe manuelle, un Parfait ou un record de combo. Une entrée manuelle coupe Auto. Le bouton reste disponible pour reprendre la lecture.
+Auto se débloque avec la première salle (niveau 2) et reste acquis après une transmission ou un saut de dimension. Il suit la carte des notes pendant la lecture, en Rythme et en Freestyle. Il se fige en pause, dans le menu ou en arrière-plan. Son curseur lit l’horloge audio : une chute de framerate saute les notes anciennes sans rafale. Auto rapporte dégâts/pièces et charge le Flow comme une frappe Bien ; il ne compte pas comme une frappe manuelle, un Parfait ou un record de combo. Une entrée manuelle coupe Auto. Le bouton reste disponible pour reprendre la lecture.
 
 Les frappes alternent jab, direct, pied et uppercut selon une séquence de huit notes ; les icônes anticipent ces coups. Pied et Uppercut préparent une seule prochaine frappe. Danse règle les pas entre les attaques, avec une phase calculée depuis les beats locaux, y compris aux changements de tempo. Les actions interrompent la danse. Les poses sont des WebP individuels dans dist/sprites/, alignés par hero-manifest.mjs et dessinés entiers ; les neuf PNG d’origine sont dans art/sprites/. Les poses de danse sourient légèrement. Voir SPRITES-INDIVIDUELS.md. Les anciennes planches restent des références historiques et ne sont plus chargées par le rendu. La réduction des mouvements désactive la danse et les déplacements décoratifs.
 

@@ -200,6 +200,8 @@
 @media(prefers-reduced-motion:reduce){#strike-button.judged::after{animation-name:judge-fade}@keyframes judge-fade{from{opacity:1}to{opacity:0}}}
 /* End-of-song card: the record line pops so a new best is impossible to miss. */
 .end-stats{margin:18px 0}
+/* On short screens the card opens on its grade, with the next song still at hand. */
+#end-next{position:sticky;bottom:-18px;z-index:1}
 .end-stats .stat-cell strong{font-size:clamp(20px,6.6vw,39px);white-space:nowrap}
 .end-record{margin:14px 0 0;padding:8px 12px;text-align:center;font:900 italic 18px/1.2 var(--display);color:#1b1410;background:var(--gold,#efb734);animation:end-record .6s ease-out}
 @keyframes end-record{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1)}}

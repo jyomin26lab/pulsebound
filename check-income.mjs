@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import {freshState,restoreState,VENUES,MAX_VENUE,venueOf,students,comfort,fullyEquipped,buyItem,recruitPlan,recruit,expandCost,canExpand,expand,sessionPayout,canJump,dimensionJump,canTransmit,prestigeGain,prestige,damageEnemy,enemyHealth,addCoins} from './dist/core.mjs';
+import {freshState,restoreState,VENUES,MAX_VENUE,venueOf,students,comfort,fullyEquipped,buyItem,recruitPlan,recruit,expandCost,canExpand,expand,sessionPayout,canJump,dimensionJump,canTransmit,autoUnlocked,prestigeGain,prestige,damageEnemy,enemyHealth,addCoins} from './dist/core.mjs';
 // The ladder: 17 venues, each pricier than the last, equipment always cheaper as a whole than the next venue is out of reach.
 assert.equal(VENUES.length,17);assert.equal(MAX_VENUE,17);assert.equal(VENUES[0].name,'La Rue');assert.equal(VENUES[9].name,'Rue alien');
 for(let i=1;i<VENUES.length;i++)assert.ok(VENUES[i].price>VENUES[i-1].price,'Chaque dojo coûte plus cher que le précédent');
 assert.equal(new Set(VENUES.flatMap(v=>v.items.map(item=>item.id))).size,VENUES.reduce((n,v)=>n+v.items.length,0),'Identifiants d’équipement uniques');
-// Street: no students, the takings are the fans' tips; every broken bag brings a fan.
+// Street: no students yet, the takings are the fans' tips; every broken bag brings a fan.
 const s=freshState(0);
 assert.equal(s.venue,1);assert.equal(students(s),0);assert.equal(sessionPayout(s),0,'Personne ne paie au début');
 s.hp=1;assert.equal(damageEnemy(s,1),1);assert.equal(s.fans,1);damageEnemy(s,enemyHealth(2),2);assert.equal(s.fans,3,'Le Flow double les fans');
@@ -33,8 +33,11 @@ const saved=restoreState(JSON.parse(JSON.stringify({...d,venue:2,items:['mats','
 assert.equal(saved.venue,2);assert.deepEqual(saved.items,['mats']);assert.equal(saved.fans,42);assert.equal(saved.dimension,1);
 const bad=restoreState({version:1,venue:99,items:'x',fans:-5,dimension:1.5});assert.equal(bad.venue,17);assert.deepEqual(bad.items,[]);assert.equal(bad.fans,0);assert.equal(bad.dimension,0);
 addCoins(d,NaN);assert.ok(Number.isFinite(d.coins));
-// First students in one tap: the real path costs 39 coins from a fresh save (3 + 6 + 25 + 5), never half-bought.
-{const r=freshState();assert.equal(recruitPlan(r).cost,39);assert.equal(recruitPlan(r).students,2);r.coins=38.99;assert.equal(recruit(r),false);assert.equal(r.venue,1);assert.deepEqual(r.items,[]);
-r.coins=40;assert.equal(recruit(r),true);assert.equal(r.venue,2);assert.equal(students(r),2);assert.ok(Math.abs(r.coins-1)<1e-9);assert.equal(recruitPlan(r),null);assert.equal(recruit(r),false);
+// First student in the street: the very first purchase (3 coins) brings one, who pays from the first song on.
+{const r=freshState();assert.equal(recruitPlan(r).cost,3);assert.equal(recruitPlan(r).students,1);r.coins=2.99;assert.equal(recruit(r),false);assert.deepEqual(r.items,[]);
+r.coins=4;assert.equal(recruit(r),true);assert.equal(r.venue,1);assert.equal(students(r),1);assert.ok(Math.abs(r.coins-1)<1e-9);assert.ok(sessionPayout(r)>=.5);assert.equal(recruitPlan(r),null);assert.equal(recruit(r),false);
+assert.equal(VENUES[9].items.reduce((n,item)=>n+item.students,0),16,'La Rue alien garde ses 16 élèves');
+// Auto strike: locked in a first street, opened by the first hall, kept after a transmission or a dimension jump.
+assert.equal(autoUnlocked(r),false);assert.equal(autoUnlocked({...r,venue:2}),true);assert.equal(autoUnlocked({...r,prestiges:1}),true);assert.equal(autoUnlocked({...r,dimension:1}),true);
 const h=freshState();h.venue=2;h.items=[];h.coins=5;assert.equal(recruitPlan(h).cost,5);assert.equal(recruit(h),true);assert.equal(students(h),2);}
-console.log('Dojos : 17 niveaux, fans, équipements, agrandissement, premier recrutement à 39 pièces, recette de séance, transmission 2-7, saut de dimension et sauvegarde vérifiés.');
+console.log('Dojos : 17 niveaux, fans, équipements, agrandissement, premier élève à 3 pièces, Frappe auto à la première salle, recette de séance, transmission 2-7, saut de dimension et sauvegarde vérifiés.');

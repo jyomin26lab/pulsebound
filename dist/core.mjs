@@ -12,7 +12,7 @@ export const UPGRADE_INFO = {
  */
 export const DIFFICULTY=1,PRICE_GROWTH=6.8,ALIEN_PRICE_GROWTH=3.9,TAKINGS_GROWTH=3.4;
 const EARTH=[
-  ['La Rue',[['bag','Sac d’occasion',0,.15],['speaker','Enceinte portable',0,.2]]],
+  ['La Rue',[['bag','Sac d’occasion',1,.15],['speaker','Enceinte portable',0,.2]]],
   ['Salle délabrée',[['mats','Tapis de sol',2,.05],['poster','Posters de champions',0,.1],['windows','Fenêtres réparées',1,.1],['fan','Ventilateur',1,.1],['lockers','Vestiaires',2,.05]]],
   ['Dojo gymnase',[['tatami','Tatamis neufs',3,.05],['mirrors','Miroirs muraux',1,.1],['rack','Râtelier d’armes',2,.05],['lights','Éclairage neuf',1,.1],['showers','Douches',3,.1]]],
   ['Dojo de quartier',[['sign','Enseigne lumineuse',2,.1],['ring','Ring d’entraînement',4,.05],['sauna','Sauna',2,.15],['trophies','Vitrine à trophées',1,.15],['assistant','Coach assistant',5,.05]]],
@@ -23,7 +23,7 @@ const EARTH=[
   ['Dojo spatial',[['gravity','Gravité artificielle',7,.1],['airlock','Sas d’accueil',6,.1],['window','Baie panoramique sur la Terre',6,.15],['shuttle','Navette de recrutement',9,.1],['station','Station d’entraînement orbitale',10,.1]]]
 ];
 // Levels 10-17 retrace levels 1-8 on an alien planet.
-const LADDER=[...EARTH,...EARTH.slice(0,8).map(([name,items])=>[name==='La Rue'?'Rue alien':name+' alien',items.map(([id,label,count,ease])=>['alien-'+id,label+' alien',count+8,ease])])];
+const LADDER=[...EARTH,...EARTH.slice(0,8).map(([name,items])=>[name==='La Rue'?'Rue alien':name+' alien',items.map(([id,label,count,ease])=>['alien-'+id,label+' alien',(name==='La Rue'?0:count)+8,ease])])];
 const SHARES=[.2,.35,.5,.7,1];// equipment cost as a share of the venue price
 export const VENUES=LADDER.map(([name,items],index)=>{
   const level=index+1,price=level===1?0:Math.round(25*PRICE_GROWTH**(Math.min(level,10)-2)*ALIEN_PRICE_GROWTH**Math.max(0,level-10)*DIFFICULTY);
@@ -50,20 +50,15 @@ export function sessionPayout(s,grade=null){
   return Math.round(base*comfort(s)*(GRADE_TAKINGS[grade]||1)*legacyMultiplier(s)*(1+.2*boon(s,'income'))*2**(s.dimension||0)*100)/100;
 }
 export function canJump(s){return s.venue===MAX_VENUE&&fullyEquipped(s);}
-// The first students, bought in one go: finish equipping the street, move into the first hall, lay its cheapest student item.
+// The first students of the street and of the first hall: the cheapest equipment that brings some, while nobody trains there yet.
 export function recruitPlan(s){
   if(students(s)>0||s.venue>2)return null;
-  const steps=[],hall=VENUES[1];let cost=0;
-  if(s.venue===1){for(const item of VENUES[0].items)if(!s.items.includes(item.id)){steps.push({item:item.id});cost+=item.cost;}steps.push({expand:true});cost+=hall.price;}
-  const owned=s.venue===2?s.items:[],first=hall.items.filter(item=>item.students&&!owned.includes(item.id)).sort((a,b)=>a.cost-b.cost)[0];
-  steps.push({item:first.id});cost+=first.cost;
-  return {cost,steps,students:first.students};
+  const first=venueOf(s).items.filter(item=>item.students).sort((a,b)=>a.cost-b.cost)[0];
+  return {cost:first.cost,item:first.id,students:first.students};
 }
-export function recruit(s){
-  const plan=recruitPlan(s);if(!plan||s.coins<plan.cost)return false;
-  for(const step of plan.steps)if(!(step.expand?expand(s):buyItem(s,step.item)))return false;
-  return true;
-}
+export function recruit(s){const plan=recruitPlan(s);return Boolean(plan)&&buyItem(s,plan.item);}
+// Auto strike comes with the first hall and stays: going back to the street takes a transmission or a dimension jump.
+export function autoUnlocked(s){return s.venue>=2||s.prestiges>0||s.dimension>0;}
 // Dimension jump: alien technology opens a new dojo in another dimension. Back to the street, takings ×2 each time.
 export function dimensionJump(s,now=Date.now()){
   if(!canJump(s))return false;
