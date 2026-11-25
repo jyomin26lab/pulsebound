@@ -499,7 +499,7 @@ async function act(inputTimestamp=performance.now(),automaticEvent=null){
   const automated=Boolean(automaticEvent);
   if(!automated&&autoEnabled)setAuto(false);
   if(!audio.playing){await play();return;}
-  if(audio.audibleTime(inputTimestamp)<0)return;
+  if(audio.audibleTime(inputTimestamp)<-.15)return;// the first note may sit at 0: its early half counts too
   const now=performance.now();
   const cooldown=settings.rhythmMode==='freestyle'?85:35;
   if(now-lastInput<cooldown)return;
@@ -792,7 +792,7 @@ function drawNotes(time){
   const finisherIndex=settings.rhythmMode==='tempo'&&finisherReady(state)?upcoming[0]?.index:-1;
   for(const note of upcoming){
     visible.add(note.index);let node=queueNodes.get(note.index);
-    if(!node){node=document.createElement('span');node.className='queue-note'+(note.beat?'':' offbeat');const img=document.createElement('img');img.src='./icons/power.svg';img.alt='';const label=document.createElement('small');label.textContent=note.index%8+1;node.append(img,label);if(note.hold){const tail=document.createElement('i');tail.className='hold-tail';node.append(tail);}$('#upcoming-notes').append(node);queueNodes.set(note.index,node);}
+    if(!node){node=document.createElement('span');node.className='queue-note'+(note.beat?'':' offbeat');const img=document.createElement('img');img.src='./icons/power.svg';img.alt='';const label=document.createElement('small');label.textContent=note.index%8+1;node.append(img,label);if(note.hold){const tail=document.createElement('i');tail.className='hold-tail';node.append(tail);}/* in a fast run, the next note to strike stays on top */$('#upcoming-notes').prepend(node);queueNodes.set(note.index,node);}
     const technique=techniqueFor(note.index,note.index===upcoming[0]?.index?armedTechnique:null);if(node.dataset.currentMove!==technique){node.dataset.currentMove=technique;node.querySelector('img').src=TECHNIQUES[technique].icon;}
     const delay=note.time-clock,y=anchor+delay/ahead*(height-anchor);
     node.style.transform=horizontal?'translate3d(calc('+y+'px - 50%),-50%,0)':'translate3d(-50%,calc('+y+'px - 50%),0)';node.style.opacity=delay<-.06?Math.max(0,1+(delay+.06)*10):Math.min(1,(ahead-delay)*4);node.classList.toggle('arriving',Math.abs(delay)<.12);node.classList.toggle('finisher',note.index===finisherIndex);if(note.hold)node.lastChild.style[horizontal?'width':'height']=note.hold/ahead*(height-anchor)+'px';
@@ -849,7 +849,7 @@ function frame(now){
     drawNotes(time);
     if(audio.playing && time<0)$('#timing-text').textContent='PRÊT · '+Math.max(1,Math.ceil(-time/(60/audio.bpm)));
     editor.tick(now);coach.tick();
-    const nearest=rhythm.nearest(clock),distance=settings.rhythmMode==='tempo'&&nearest?Math.abs(nearest.time-clock):1;
+    const nearest=rhythm.nearest(clock),distance=settings.rhythmMode==='tempo'&&nearest?Math.min(1,Math.abs(nearest.time-clock)):1;
     const disciples=students(state);
     const next=!sessionMenuOpen&&audio.playing&&(settings.rhythmMode==='tempo'||autoEnabled)?comingNote(clock):null;
     const preparation=next?(next.time>=clock?Math.max(0,1-(next.time-clock)/.19):Math.max(0,1+(next.time-clock)/.12)):0;

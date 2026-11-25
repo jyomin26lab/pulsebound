@@ -1,4 +1,5 @@
-import { RhythmMap, demoAccent } from './rhythm.mjs';
+import { RhythmMap } from './rhythm.mjs';
+import { scoreStep } from './scores.mjs';
 
 export const ANALYSIS_VERSION=2;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -43,6 +44,26 @@ export function markHolds(events,automatic=false){
   }
   return result;
 }
+/** A built-in song follows its written score (scores.mjs): each difficulty adds notes to the one below. */
+function scoreEvents(trackId,beats,level){
+  const at=step=>step%2?(beats[(step-1)/2]+beats[(step+1)/2])/2:beats[step/2],events=[],last=(beats.length-1)*2;
+  for(let step=0;step<last;step++){
+    const mark=scoreStep(trackId,step).mark;
+    if(mark==='-'){if(events.length)events.at(-1).until=at(step+1);}
+    else if(Number(mark)<=level)events.push({time:at(step),action:'punch',kind:'beat',strength:.6,beat:step%2===0,supported:false});
+  }
+  return events;
+}
+/** Written holds, kept short enough to release before the next note or the end of the song. Relaxed, with fewer notes, also holds the ones followed by a long gap. */
+function scoreHolds(events,relaxed,duration){
+  let sinceHold=4;
+  return events.map(({until=0,...event},i)=>{
+    const gap=(events[i+1]?.time??duration)-event.time,length=until?until-event.time:relaxed&&sinceHold>=4&&gap>=.9&&!events[i+1]?.until?gap:0;
+    const hold=Math.min(length,gap-.3,2.4);
+    if(hold<.5){sinceHold++;return event;}
+    sinceHold=0;return {...event,hold};
+  });
+}
 /** The beat clock and the playable attacks share song timestamps, but stay distinct. */
 export function createSongChart(track,{density='standard'}={}){
   const config=songSettings(track),duration=Number.isFinite(track?.duration)?track.duration:3600;
@@ -53,7 +74,8 @@ export function createSongChart(track,{density='standard'}={}){
   const beats=detected?[...new Set(analysis.beatMap.beats.map(t=>t+shift).filter(t=>Number.isFinite(t)&&t>=0&&t<=duration))].sort((a,b)=>a-b):gridBeats(duration,config);
   const onsets=automatic?(Array.isArray(analysis.events)?analysis.events:[]).map(e=>({...e,time:e.time+shift,strength:clamp(Number(e.strength)||0,0,1)})).filter(e=>Number.isFinite(e.time)&&e.time>=0&&e.time<=duration).sort((a,b)=>a.time-b.time):[];
   const times=onsets.map(e=>e.time);
-  let events=automatic&&!detected?onsets.map(event=>({...event,action:'punch',beat:false,supported:true})):beats.map((time,index)=>{
+  const score=Boolean(track?.builtin&&scoreStep(track.id,0)),relaxed=density==='relaxed'&&config.bpm>80;// a song that is slow already keeps all its notes
+  let events=score?scoreEvents(track.id,beats,relaxed?1:density==='intense'?3:2):automatic&&!detected?onsets.map(event=>({...event,action:'punch',beat:false,supported:true})):beats.map((time,index)=>{
     const onset=onsets[nearestIndex(times,time)],supported=onset&&Math.abs(onset.time-time)<.075;
     return {time:supported?onset.time:time,index,action:'punch',kind:supported?onset.kind:'beat',strength:supported?onset.strength:.6,beat:true,supported:Boolean(supported)};
   });
@@ -61,14 +83,8 @@ export function createSongChart(track,{density='standard'}={}){
     const wave=analysis.waveform,energy=Array.isArray(wave)?wave[Math.min(wave.length-1,Math.max(0,Math.floor((event.time-shift)/duration*wave.length)))]:1;
     return event.supported||(analysis.beatMap?.confidence||0)>=.5&&energy>.04;
   });
-  // Relaxed keeps one beat out of two, unless the song is slow already.
-  if(density==='relaxed'&&config.bpm>80)events=events.filter(event=>!event.beat||event.index%2===0);
-  if(track?.builtin && density==='intense'){
-    for(let i=0;i<beats.length-1;i++){
-      const accent=demoAccent(track.id,i*2+1);
-      if(accent)events.push({time:(beats[i]+beats[i+1])/2,action:'punch',beat:false,...accent});
-    }
-  }
+  // Relaxed keeps one beat out of two.
+  if(relaxed&&!score)events=events.filter(event=>!event.beat||event.index%2===0);
   const attackTimes=events.map(e=>e.time).sort((a,b)=>a-b);
   // Only strong offbeats become extra punches; a minimum gap keeps dense mixes playable.
   for(const onset of onsets){
@@ -85,7 +101,7 @@ export function createSongChart(track,{density='standard'}={}){
     if(density==='relaxed' && playable.length && event.time-playable.at(-1).time<.38)continue;
     playable.push(event);
   }
-  const held=markHolds(playable,automatic);
+  const held=score?scoreHolds(playable,relaxed,duration):markHolds(playable,automatic);
   held.forEach((e,i)=>e.index=i);
   return {config,beats,events:held,rhythm:new RhythmMap(held),automatic,duration};
 }

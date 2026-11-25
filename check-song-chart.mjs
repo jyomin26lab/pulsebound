@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {createSongChart,gridBeats,songSettings,waveformPeaks,markHolds} from './dist/song-chart.mjs';
+import {SCORES} from './dist/scores.mjs';
+import {TRACKS} from './dist/audio.mjs';
 const close=(a,b)=>assert.ok(Math.abs(a-b)<.00001,`${a} ≠ ${b}`);
 const config={bpm:120,offset:.25,segments:[{time:4.25,bpm:180},{time:7.25,bpm:90}]};
 const beats=gridBeats(10,config);
@@ -36,4 +38,21 @@ const ev=t=>({time:t,beat:true,supported:true});
 close(markHolds([ev(0),ev(.5),ev(1),ev(1.5),ev(2),ev(4),ev(4.5)],true)[4].hold,1.7);
 const quiet=markHolds([ev(0),ev(.5),ev(1),ev(1.5),ev(2),{time:2.5,beat:true,supported:false},ev(3),ev(3.5)],true);assert.equal(quiet.length,7,'Le temps sans attaque est absorbé');close(quiet[4].hold,.7);
 assert.ok(!markHolds([ev(0),ev(.5),ev(1)],true).some(e=>e.hold),'Pas de note longue sans passage tenu');}
-console.log('Cartes musicales : sections 120→180→90 BPM, contretemps, offset, fenêtres, aperçu, fin et forme d’onde validés.');
+// Written scores: they cover their song, each difficulty keeps the notes of the one below, sections contrast, and every note leaves time for the next.
+for(const [id,track]of Object.entries(TRACKS)){
+  const score=SCORES[id],eighth=30/track.bpm;close(score.length*eighth,track.duration);
+  assert.match(score.map(step=>step.mark).join(''),/^(1-*|[23.])+$/,id+' : partition lisible, une note tenue existe dans les trois difficultés');
+  const [relaxed,standard,intense]=['relaxed','standard','intense'].map(density=>createSongChart({id,builtin:true,...track,offset:0},{density}).events);
+  const times=events=>new Set(events.map(e=>e.time));
+  assert.ok(relaxed.every(e=>times(standard).has(e.time))&&standard.every(e=>times(intense).has(e.time)),id+' : chaque difficulté garde les notes de la précédente');
+  assert.ok(relaxed.length<standard.length*.6&&intense.length>standard.length*1.2,id+' : trois difficultés bien distinctes');
+  for(const [events,least]of [[relaxed,.38],[standard,.18],[intense,.18]])events.forEach((e,i)=>{
+    const next=events[i+1];assert.equal(e.index,i);if(next)assert.ok(next.time-e.time>=least,id+' : notes jouables');
+    if(e.hold){assert.ok(e.hold>=.5&&e.hold<=2.4);assert.ok(events===relaxed||!next?.hold,id+' : pas deux notes longues de suite à '+e.time);assert.ok((next?.time??track.duration)-e.time-e.hold>=.29,id+' : le temps de relâcher');}
+  });
+  const gaps=standard.slice(1).map((e,i)=>Math.round((e.time-standard[i].time)/eighth));
+  assert.ok(gaps.filter(g=>g===2).length<gaps.length*.55&&new Set(gaps).size>=5,id+' : pas un métronome');
+  const perBar=name=>{const part=score.filter(step=>step.section===name);return part.filter(step=>'12'.includes(step.mark)).length/part.length*8;};
+  assert.ok(perBar('intro')<perBar('couplet')&&perBar('couplet')<perBar('refrain')&&perBar('refrain')<perBar('final')&&perBar('silence')<perBar('couplet')/1.5&&perBar('roulement')>=5,id+' : la densité suit les sections');
+}
+console.log('Cartes musicales : partitions écrites, sections 120→180→90 BPM, contretemps, offset, fenêtres, aperçu, fin et forme d’onde validés.');

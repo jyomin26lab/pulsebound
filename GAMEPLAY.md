@@ -15,7 +15,7 @@ Une session courte permet de frapper, acheter et voir une amélioration. Une ses
 
 ## Flow et équilibre musical
 
-Le Flow se remplit selon l’intervalle local des événements et la précision. Une densité de notes doublée ne double donc pas automatiquement sa vitesse de charge. Les dégâts et pièces de frappe sont aussi pondérés par cet intervalle, avec bornes de jouabilité. Ce n’est pas une garantie d’équivalence parfaite entre tous les arrangements : silences, erreurs et sélection des onsets influencent la partie.
+Le Flow se remplit selon l’intervalle local des événements et la précision. Une densité de notes doublée ne double donc pas automatiquement sa vitesse de charge. Les dégâts et pièces de frappe sont aussi pondérés par cet intervalle, avec bornes de jouabilité. Ce n’est pas une garantie d’équivalence parfaite entre tous les arrangements : silences, erreurs et sélection des onsets influencent la partie. Les partitions écrites des trois originaux ont été réglées sur les gains d’avant : −0,1 % en moyenne par morceau, entre −6 % et +7 % selon le titre et la difficulté.
 
 Le Flow démarre au prochain beat, dure 32 temps et se met en pause avec le transport. Son bonus passif ne s’applique que pendant la lecture. Les 32 temps sont présentés comme huit mesures de quatre temps ; il n’y a pas de détection de signature rythmique. La grille manuelle sert de repli sans beats exploitables. En Freestyle, aucune fenêtre de précision n’est imposée et les gains dépendent du temps entre frappes.
 

@@ -15,6 +15,8 @@ Deux modes : Pulsation régulière avec notes anticipées et précision, Freesty
 
 Les beats servent au conducteur et au métronome. Les coups utilisent les attaques proches de ces beats et les contretemps forts. Silence et temps sans attaque sont filtrés selon énergie et confiance. Sous 50 % de confiance heuristique, une attaque détectée est nécessaire pour garder un temps interpolé comme coup. Espacement minimal : 180 ms.
 
+Les trois originaux suivent une partition écrite (`dist/scores.mjs`) : une ligne par section (intro, couplet, montée, refrain, silence, roulement, final), huit croches par mesure. `1` se joue dans les trois difficultés, `2` à partir de Standard, `3` en Intense seulement ; `-` prolonge une note tenue et `.` se tait. Détente, Standard et Intense partagent donc le même morceau, de plus en plus rempli ; Détente tient aussi les notes suivies d’un long vide. Le synthétiseur lit la même partition : la batterie se tait dans un silence, la caisse claire joue chaque note d’un roulement et le charleston marque les notes. Les morceaux importés et le Duel gardent leur propre carte.
+
 La grille manuelle suit les BPM/sections saisis. Chaque section ancre un temps à son instant. Un changement 120 → 180 → 90 modifie donc les notes, le métronome et la synthèse des originaux. Pour un fichier importé, l’éditeur ajuste la carte sans modifier la vitesse ou les octets de la musique.
 
 Les notes défilent vers un grand repère fixe : anticipation de 2,8 s sur grande bande, 1,6 s sur petite bande. Positions et préparation de pose lisent l’horloge de sortie ; coups, sac, effets et combo répondent à l’entrée jugée. Les paliers de combo sont visuels et sonores, sans nouvelle monnaie.
@@ -25,6 +27,6 @@ Le décalage translate la carte automatique. BPM et sections activent la grille 
 
 Une attaque est un changement spectral saillant, pas une reconnaissance certaine d’instrument. Premier beat, demi/double tempo, voix seules, nappes, mixages chargés, polyrythmie et changements brusques peuvent demander une correction. La confiance n’est pas une probabilité calibrée. Aucun test synthétique ou capture ne mesure la latence acoustique réelle.
 
-check-rhythm.mjs vérifie onsets irréguliers, fréquences, silence, note tenue et attaques après 94 s. check-beat-analysis.mjs vérifie intro, temps manquant et variation de tempo. check-song-chart.mjs vérifie sections, frontières, contretemps, translation, aperçu et fin. Les vérifications d’horloge, transport et playlist couvrent seek, cache et calage.
+check-rhythm.mjs vérifie onsets irréguliers, fréquences, silence, note tenue et attaques après 94 s. check-beat-analysis.mjs vérifie intro, temps manquant et variation de tempo. check-song-chart.mjs vérifie les partitions écrites (durée, difficultés emboîtées, écarts variés, densité des sections, temps pour relâcher), les sections, frontières, contretemps, translation, aperçu et fin. Les vérifications d’horloge, transport et playlist couvrent seek, cache et calage.
 
 Principes : [nouveauté spectrale AudioLabs/FMP](https://www.audiolabs-erlangen.de/resources/MIR/FMP/C6/C6S1_NoveltySpectral.html) et [suivi de beat libfmp](https://github.com/meinardmueller/libfmp/blob/master/libfmp/c6/c6s3_beat_tracking.py). Implémentation JavaScript locale, sans service externe.

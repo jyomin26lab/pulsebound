@@ -1,4 +1,4 @@
-import { demoAccent } from './rhythm.mjs';
+import { scoreStep } from './scores.mjs';
 import { AudioClock } from './audio-clock.mjs';
 import { BeatConductor } from './beat-conductor.mjs';
 import { impactSamples, IMPACT_STYLES, reverbImpulse } from './audio-sfx.mjs';
@@ -217,15 +217,18 @@ export class Soundtrack {
       const step = ((this.nextStep % 32) + 32) % 32;
       if (time >= this.ctx.currentTime&&event.songTime<this.duration) {
         if (!this.buffer) {
-          const track = TRACKS[this.trackId];
-          if (step % 4 === 0 || (this.trackId === 'chrome' && step % 8 === 6)) this.drum(time, 'kick');
-          if (step % 4 === 2) this.drum(time, 'snare');
-          this.drum(time, 'hat', Boolean(demoAccent(this.trackId, step)));
+          const track = TRACKS[this.trackId], score = scoreStep(this.trackId, this.nextStep), note = '123'.includes(score.mark);
+          // The arrangement follows the written score: the drums leave a silence, the snare plays the roll, the hat marks the notes.
+          if (score.section !== 'silence') {
+            if (step % 4 === 0 || (this.trackId === 'chrome' && step % 8 === 6)) this.drum(time, 'kick');
+            if (step % 4 === 2 || (score.section === 'roulement' && note)) this.drum(time, 'snare');
+            this.drum(time, 'hat', note);
+          }
           const progression = [0, -2, 3, -5][Math.floor(step / 8)];
           const bass = track.root * 2 ** (progression / 12);
           if (step % 2 === 0) this.tone(time, bass, stepLength * 1.2, 'triangle', .22);
           const melody = bass * 4 * 2 ** (track.scale[step % 8] / 12);
-          if (this.trackId !== 'after' || step % 2 === 0) this.tone(time, melody, stepLength * .72, 'triangle', .075);
+          if (this.trackId !== 'after' || step % 2 === 0 || note) this.tone(time, melody, stepLength * .72, 'triangle', .075);
           if (step % 8 === 0) {
             for (const semitone of [0, 3, 7]) this.tone(time, bass * 2 * 2 ** (semitone / 12), stepLength * 7.5, 'sine', .035);
           }

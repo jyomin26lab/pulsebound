@@ -21,5 +21,5 @@ export function judgePlayable(rhythm, time, focus, lastExpired, resolved) {
   const error = (time-candidate.time)*1000;
   const window = rhythm.windows(candidate, focus);
   const grade=Math.abs(error)<=window.perfect*1000?'perfect':Math.abs(error)<=window.good*1000?'good':'miss';
-  return {event:candidate,index:candidate.index,error,grade,early:grade==='miss'&&error<0&&error>-window.good*1600};
+  return {event:candidate,index:candidate.index,error,grade,early:grade==='miss'&&error<0&&error>-window.good*1800};
 }
