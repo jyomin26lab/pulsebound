@@ -1,0 +1,76 @@
+/* The duel: a full-screen dialog over the menu. Every rule is scoped to #duel. */
+#duel{--parry:#c9402c;--shadow:#8d6bff;position:fixed;inset:0;width:100%;max-width:1100px;height:var(--app-h,100dvh);max-height:none;margin:0 auto;border:0;overflow:hidden;background:#151214;color:var(--paper);font:500 15px/1.4 var(--font);
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);overscroll-behavior:none}
+#duel[open]{display:flex;flex-direction:column}
+#duel::backdrop{background:#151214}
+body:has(#duel[open]){overflow:hidden}
+#duel button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#duel button:focus-visible{outline:3px solid var(--paper);outline-offset:3px}
+#duel svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+
+.duel-bars{flex:none;display:grid;grid-template-columns:1fr 44px 1fr;gap:10px;align-items:center;padding:6px 10px;background:var(--ink)}
+#duel .fighter{display:grid;grid-template-columns:1fr auto;gap:2px 8px;font-variant-numeric:tabular-nums}
+#duel .rival{grid-template-columns:auto 1fr;text-align:right}
+#duel .fighter strong{font:italic 900 20px/1 var(--display);text-transform:uppercase}
+#duel .fighter span{font-weight:800;font-size:14px;line-height:20px}
+#duel .fighter .bar{grid-column:1/-1}
+#duel .bar{height:12px;background:#0008;border:2px solid #ffffff30;overflow:hidden}
+#duel .bar i{display:block;height:100%;width:100%;background:var(--timing);transform-origin:left;transition:transform .15s}
+#duel .rival .bar i{background:var(--shadow);transform-origin:right}
+#duel .nova .bar.low i{background:var(--parry)}
+#duel-pause{width:44px;height:44px;display:grid;place-items:center;padding:0;background:none;border:2px solid #ffffff40;border-radius:10px;color:var(--paper)}
+#duel-pause svg{width:22px}
+
+.duel-stage{position:relative;flex:1 1 0;min-height:120px}
+.duel-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#phase{position:absolute;top:8px;left:50%;translate:-50%;margin:0;padding:3px 16px;white-space:nowrap;background:var(--parry);color:#fff;font:italic 900 24px/28px var(--display);text-transform:uppercase}
+#phase:empty{visibility:hidden}
+#duel[data-phase=strike] #phase{background:var(--paper);color:var(--ink)}
+#duel[data-alert=true] #phase{padding:6px 22px;font-size:34px;line-height:36px;background:#e8241a;color:#fff}
+#lane{flex:none;width:100%;height:76px;display:block;background:#0e2226;border-block:2px solid #2fb7b266}
+#duel[data-alert=true] #lane{background:#4a1414}
+
+#duel .meters{flex:none;display:flex;align-items:center;gap:18px;padding:6px 14px}
+#duel .combo{font-weight:700;white-space:nowrap}
+#duel .combo b{font:italic 900 24px/1 var(--display);font-variant-numeric:tabular-nums}
+#duel .flow{flex:1;display:flex;align-items:center;gap:10px;font-weight:800}
+#duel .flow .bar{flex:1}
+#duel .flow .bar i{background:var(--ember);transform:scaleX(0)}
+#duel .flow.full{color:#8ff0ea}
+#duel .flow.full .bar{border-color:var(--timing)}
+#duel .flow.full .bar i{background:var(--timing)}
+
+#duel .pads{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:10px;height:clamp(96px,17dvh,150px);padding:0 10px;margin-bottom:max(10px,env(safe-area-inset-bottom))}
+#duel .pads button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:3px solid #0006;border-radius:14px;font:italic 900 28px/1 var(--display);color:#fff;background:var(--parry);opacity:.38;touch-action:none;user-select:none;-webkit-user-select:none}
+#duel .pads svg{width:28px;height:28px}
+#duel .pads #pad-strike{background:var(--paper);color:var(--ink)}
+#duel .pads kbd{font:700 12px/1 var(--font);opacity:.75}
+#duel[data-phase=parry] #pad-parry,#duel[data-phase=strike] #pad-strike{opacity:1;box-shadow:inset 0 0 0 4px var(--timing)}
+#duel[data-alert=true] .pads #pad-parry{background:#e8241a}
+#duel .pads button.down{filter:brightness(1.2);scale:.98}
+@media(hover:none){#duel .pads kbd{display:none}}
+
+#panel{position:absolute;inset:0;display:grid;place-items:center;overflow:auto;padding:16px;background:#0d1517e6}
+.duel-card{width:min(100%,440px);padding:20px;background:var(--paper);color:var(--ink);box-shadow:6px 6px 0 #0009}
+.duel-card small{font-weight:800;font-size:14px}
+.duel-card h2{margin:2px 0 12px;font:italic 900 40px/1 var(--display);text-transform:uppercase}
+.duel-card p{display:flex;gap:12px;align-items:center;margin:0 0 10px}
+.duel-card .mark{flex:none;width:30px;height:30px;border:3px solid var(--timing)}
+.duel-card .mark.parry{background:var(--parry);border-color:#fff;border-radius:4px 4px 50% 50%;box-shadow:0 0 0 2px var(--parry)}
+.duel-card .mark.sudden{display:grid;place-items:center;color:#fff;font:900 18px/1 var(--display)}
+.duel-card .mark.flow-mark{background:var(--ember);height:14px}
+.duel-card dl{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin:0 0 12px;font-variant-numeric:tabular-nums}
+.duel-card dt,.duel-card dd{margin:0}
+.duel-card dd{font-weight:800}
+#start{width:100%;min-height:56px;margin-top:6px;border:3px solid var(--ink);background:var(--ember);color:var(--ink);font:italic 900 28px/1 var(--display);box-shadow:4px 4px 0 var(--ink)}
+#start:disabled{opacity:.5}
+#leave{display:block;width:100%;min-height:48px;margin-top:8px;padding:0;background:none;color:inherit;font:700 16px var(--font);text-decoration:underline}
+#duel .duel-card button:focus-visible{outline-color:var(--ink)}
+@media(max-height:620px){#lane{height:60px}#duel .meters{padding-block:2px}#duel .pads{height:96px}.duel-card h2{font-size:32px}.duel-card p{margin-bottom:6px}}
+/* Phone held sideways: the pads go to the thumbs, on each side of the fighters. */
+@media(min-width:600px) and (max-height:480px){
+  #duel .pads{position:absolute;left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:calc(104px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;height:120px;margin:0;padding:0;pointer-events:none}
+  #duel .pads button{width:136px;pointer-events:auto}
+  #duel .meters{padding-bottom:max(4px,env(safe-area-inset-bottom))}
+}
+@media(prefers-reduced-motion:reduce){#duel .bar i{transition:none}#duel .pads button.down{scale:none}}

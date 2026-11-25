@@ -8,9 +8,11 @@ Jeu incrémental musical en JavaScript/Web Audio, sans dépendances. Nova frappe
 
 Node.js 20+ : lancer node serve.mjs, puis ouvrir http://127.0.0.1:4173.
 
-Avant de commencer, composer sa playlist et écouter un titre, puis choisir **Pulsation régulière** ou **Freestyle** et Jouer, juste à côté du bouton Écouter. D / F / Espace, le sac ou le grand repère déclenchent une frappe. Les améliorations sont en icônes au-dessus de la boutique.
+Avant de commencer, composer sa playlist et écouter un titre, puis choisir **Rythme**, **Freestyle** ou **Duel** et Jouer. D / F / Espace, le sac ou le grand repère déclenchent une frappe. Les améliorations sont en icônes au-dessus de la boutique.
 
 En mode rythmique, les prochains coups défilent vers le grand repère fixe : frapper à leur arrivée. La précision construit le combo et le Flow ; les enchaînements de 8/16/32/64/128 coups ont leur retour visuel et sonore. En Freestyle, frapper librement, sans jugement de tempo ni notes imposées. Les gains sont pondérés par le temps couvert pour limiter l’avantage du spam ou des chansons très rapides.
+
+En **Duel**, Nova affronte son Ombre sur le morceau choisi, original ou importé : pendant ses phrases on pare (F, boucliers), pendant les nôtres on frappe (J, éclairs). L’Ombre glisse aussi des attaques surprises, annoncées une demi-seconde avant. Chaque note réussie rapporte 0,01 pièce ; une victoire paie une recette de séance multipliée par la note, une défaite n’en paie pas. Règles dans duel-core.mjs, vérifiées par check-duel.mjs.
 
 ## Musique et calage
 

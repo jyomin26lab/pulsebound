@@ -13,6 +13,7 @@ import { SongEditor } from './song-editor.mjs';
 import { decodeMusicFile, decodeAudioBlob } from './audio-import.mjs';
 import { AutoStriker, TECHNIQUES, STYLE_MOVES, FORMS, learnedMove, techniqueFor, beatPosition } from './combat-controls.mjs';
 import {SyncCoach} from './sync-coach.mjs';
+import { createDuel } from './duel.mjs';
 const $=selector=>document.querySelector(selector);
 const $$=selector=>[...document.querySelectorAll(selector)];
 const number=new Intl.NumberFormat('fr-FR',{maximumFractionDigits:1});
@@ -20,7 +21,7 @@ const coinGain=new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2});
 const compact=new Intl.NumberFormat('fr-FR',{notation:'compact',maximumFractionDigits:1});
 const format=value=>value>=10000?compact.format(value):coinGain.format(Math.floor(value*100+1e-8)/100);
 const settingsKey='pulsebound-settings-v1';
-let state=freshState(),settings={density:'standard',impactStyle:'leather',volume:65,latency:0,metronome:false,trackId:'neon',rhythmMode:'tempo',sfxVolume:80,sfx:true,intense:!matchMedia('(prefers-reduced-motion: reduce)').matches},storageAvailable=true;
+let state=freshState(),settings={density:'standard',impactStyle:'leather',volume:65,latency:0,metronome:false,trackId:'neon',rhythmMode:'tempo',duelSeen:false,sfxVolume:80,sfx:true,intense:!matchMedia('(prefers-reduced-motion: reduce)').matches},storageAvailable=true;
 try{
   state=restoreState(JSON.parse(localStorage.getItem(SAVE_KEY)));
   const raw=JSON.parse(localStorage.getItem(settingsKey));
@@ -33,7 +34,8 @@ try{
     if(typeof raw.sfx==='boolean')settings.sfx=raw.sfx;
     if(typeof raw.intense==='boolean')settings.intense=raw.intense;
     if(Object.hasOwn(TRACKS,raw.trackId))settings.trackId=raw.trackId;
-    if(['tempo','freestyle'].includes(raw.rhythmMode))settings.rhythmMode=raw.rhythmMode;
+    if(['tempo','freestyle','duel'].includes(raw.rhythmMode))settings.rhythmMode=raw.rhythmMode;
+    if(typeof raw.duelSeen==='boolean')settings.duelSeen=raw.duelSeen;
     if(Number.isFinite(raw.sfxVolume))settings.sfxVolume=Math.max(0,Math.min(100,raw.sfxVolume));
   }
 }catch{storageAvailable=false;}
@@ -57,13 +59,15 @@ const audio=new Soundtrack(handleTransport);
 audio.impactStyle=settings.impactStyle;audio.select(settings.trackId);audio.setVolume(settings.volume/100);audio.metronome=settings.metronome;audio.sfx=settings.sfx;audio.setSfxVolume(settings.sfxVolume/100);
 const scene=new DojoScene($('#fight-canvas'));scene.intense=settings.intense;document.body.classList.toggle('calm-fx',!settings.intense);
 const fxLayer=document.body.appendChild(Object.assign(document.createElement('div'),{className:'fx-layer'}));fxLayer.setAttribute('aria-hidden','true');
+let duel=null;// built on the first fight
 let rhythm=demoMap(audio.trackId,audio.bpm,audio.offset,settings.rhythmMode);
 function rebuildRhythm(){
   const track=library.current;
   if(track){const chart=createSongChart(track,{density:settings.density});rhythm=chart.rhythm;audio.setTempo(chart.config.bpm,chart.config.offset);audio.setBeatMode('detected');audio.setBeatMap({beats:chart.beats},chart.config.offset);}
   else{audio.setBeatMode('tempo');rhythm=demoMap('silent',audio.bpm,audio.offset,'tempo');}
   const free=settings.rhythmMode==='freestyle';$('#mobile-strike span').textContent=free?'Tape à ton rythme':'Quand la note rejoint le cercle';$('#rhythm-mode-label').textContent=free?'FREESTYLE':'RYTHME · '+({relaxed:'DÉTENTE',standard:'STANDARD',intense:'INTENSE'}[settings.density]);
-  $$('[data-rhythm-mode]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.rhythmMode===settings.rhythmMode)));
+  $$('[data-rhythm-mode]').forEach(button=>{const on=button.dataset.rhythmMode===settings.rhythmMode;button.setAttribute('aria-pressed',String(on));if(on)$('#mode-line').textContent=button.querySelector('small').textContent;});
+  document.body.dataset.mode=settings.rhythmMode;const pose='./sprites/menu-'+(free?'dance':'nova')+'.webp';if($('#hero-nova').getAttribute('src')!==pose)$('#hero-nova').src=pose;
   $('#tempo-options').hidden=free;$('#strike-button').setAttribute('aria-label',free?'Frapper librement':'Frapper en rythme');document.body.classList.toggle('freestyle',free);
   $('#bag-hitbox').setAttribute('aria-label',free?'Frapper librement le sac':'Frapper le sac');$('#bag-hitbox').title=free?'Frappe libre · D / F / Espace':'Frapper en rythme · D / F / Espace';
   $('.page-footer p').textContent=free?'D / F / Espace ou clique le sac quand tu veux.':'D / F / Espace · Frappe quand une note rejoint le grand repère. Note à traînée : garde la touche enfoncée.';
@@ -100,7 +104,9 @@ function syncTransport(){
   updateUI();
 }
 async function play(){
-  if(transportBusy||audio.playing&&!sessionMenuOpen||!libraryLoaded||importing||trackLoading)return;transportBusy=true;
+  if(transportBusy||audio.playing&&!sessionMenuOpen||!libraryLoaded||importing||trackLoading)return;
+  if(sessionMenuOpen&&settings.rhythmMode==='duel')return openDuel();
+  transportBusy=true;
   const fromMenu=sessionMenuOpen;
   if(fromMenu)audio.pause();
   $('#session-error').hidden=true;
@@ -125,6 +131,23 @@ async function play(){
     if(fromMenu){showTab('play');requestAnimationFrame(()=>$('#battle-card').scrollIntoView({block:'start',behavior:'auto'}));}
   }catch(error){const message=error.message||'Lecture audio indisponible. Essaie de relancer le morceau.';$('#session-error').textContent=message;$('#session-error').hidden=false;toast(message);}finally{transportBusy=false;updateUI();}
 }
+// The duel covers the menu with a dialog, so the session under it stays still.
+async function openDuel(){
+  transportBusy=true;audio.pause();$('#session-error').hidden=true;updateUI();
+  try{
+    if(!library.current)throw Error('Choisis un morceau pour le duel.');
+    await audio.init();await ensureTrack();
+    duel??=createDuel({root:$('#duel'),audio,settings,venueArt:()=>venueOf(state).art,reward:payDuel});
+    await duel.open(library.current,!settings.duelSeen);settings.duelSeen=true;save();
+  }catch(error){$('#session-error').textContent=error.message;$('#session-error').hidden=false;}
+  finally{transportBusy=false;updateUI();}
+}
+$('#duel').addEventListener('close',()=>$('#start-button').focus({preventScroll:true}));
+// Every note hit pays like a strike; a victory is worth one session, multiplied by its grade.
+function payDuel({victory,grade,hits}){
+  const coins=hits*.01+(victory?sessionPayout(state,grade):0);addCoins(state,coins);award();save();updateUI();
+  return '+'+coinGain.format(coins)+(coins<2?' pièce':' pièces');
+}
 $('#play-button').addEventListener('click',()=>sessionMenuOpen?previewTrack():audio.playing?audio.pause():play());
 $('#preview-track').addEventListener('click',previewTrack);
 $('#pause-button').addEventListener('click',()=>audio.playing?audio.pause():play());
@@ -137,17 +160,20 @@ async function previewTrack(){
 }
 $('#restart-session').addEventListener('click',async()=>{audio.pause();resetSong();flow.reset();resolved.clear();lastActionSongTime=-1;await audio.seek(0,false);await play();});
 $('#start-button').addEventListener('click',play);
-$('#mobile-start-button').addEventListener('click',play);
+async function browse(direction){const listening=audio.playing;await advanceTrack(direction,false);if(listening)await previewTrack();}
+$('#menu-prev').addEventListener('click',()=>browse(-1));$('#menu-next').addEventListener('click',()=>browse(1));
 function setTrackUI(){
   const track=library.current;
+  document.body.style.setProperty('--bpm',track?.bpm||112);
   $('#track-title').textContent=track?.title||'Session sans musique';$('#dojo-track').hidden=!track||track.builtin;
-  $('#preview-title').textContent=track?.title||'Session sans musique';$('#preview-meta').textContent=track?Math.floor(track.duration/60)+':'+String(Math.floor(track.duration%60)).padStart(2,'0')+' · '+(track.builtin?'Original du dojo':'Ton morceau'):'Ajoute ton son ou joue sans musique.';
+  $('#preview-title').textContent=track?.title||'Session sans musique';$('#preview-meta').textContent=track?Math.floor(track.duration/60)+':'+String(Math.floor(track.duration%60)).padStart(2,'0')+' · '+Math.round(track.bpm)+' BPM · '+(track.builtin?'Original':'Ton morceau'):'Ajoute ton son ou joue sans musique.';
   $('#track-subtitle').textContent=track?(library.order.indexOf(track.id)+1)+' / '+library.items.length+' · '+(track.builtin?'ORIGINAL DU DOJO':'TA PLAYLIST'):'AJOUTE UN SON OU JOUE LIBREMENT';
   const bpm=loadedId===(track?.id||'silent')?audio.bpm:track?.bpm||120;
   $('#bpm-display').textContent=number.format(bpm);$('#bpm-input').value=bpm;$('#menu-bpm').textContent=number.format(bpm)+' BPM';$('#offset-input').value=Math.round((track?.offset||0)*1000);
 }
 function handleTransport(event){
   syncTransport();
+  if($('#duel').open){duel.transport(event);return;}
   if(event?.reason!=='ended'||sessionMenuOpen||$$('dialog[open]').length)return;
   if(!state.dojoLit && library.current){
     state.dojoLit=true;addCoins(state,sessionPayout(state));
@@ -246,7 +272,7 @@ function flashIncome(from,to){incomeFlash={from,to,until:performance.now()+2600}
 function renderVenue(){
   const v=venueOf(state);
   if(renderedVenue!==state.venue){
-    renderedVenue=state.venue;
+    renderedVenue=state.venue;$('#hero-art').style.backgroundImage='url("./'+v.art+'")';
     $('#venue-items').replaceChildren(...v.items.map(item=>{
       const button=document.createElement('button');button.type='button';button.className='perk';button.dataset.item=item.id;
       const name=document.createElement('strong');name.textContent=item.name;
@@ -329,20 +355,20 @@ $('#dojo-continue').addEventListener('click',()=>{
   $('#dojo-reveal').hidden=true;
   void advanceTrack(1,true);
 });
-function showSessionMenu(){showTab('play');$('#dojo-reveal').hidden=true;audio.pause();sessionMenuOpen=true;updateUI();$('#session-menu').scrollIntoView({behavior:'auto',block:'start'});}
+function showSessionMenu(){showTab('play');$('#dojo-reveal').hidden=true;audio.pause();sessionMenuOpen=true;updateUI();scrollTo(0,0);}
 function updateUI(){
   document.body.classList.toggle('in-session',!sessionMenuOpen);$('#session-menu').hidden=!sessionMenuOpen;$('#battle-card').hidden=sessionMenuOpen;
-  $('#start-button').disabled=!libraryLoaded||trackLoading||importing||transportBusy;$('#start-button').firstChild.textContent=transportBusy?'ACTIVATION… ':trackLoading?'CHARGEMENT… ':'JOUER ';
-  $('#mobile-start-button').disabled=$('#start-button').disabled;$('#mobile-start-button').textContent=transportBusy||trackLoading||importing?'…':'JOUER ↗';
+  $('#start-button').disabled=!libraryLoaded||trackLoading||importing||transportBusy;$('#start-button').firstChild.textContent=transportBusy?'ACTIVATION… ':trackLoading?'CHARGEMENT… ':settings.rhythmMode==='duel'?'COMBATTRE ':'JOUER ';
   $('#play-button').disabled=!libraryLoaded||trackLoading||importing||transportBusy;$('#open-song-editor').disabled=!libraryLoaded||trackLoading||importing||!library.current;
   $('#cancel-audio-import').hidden=!importing;
-  $('#preview-track').disabled=$('#play-button').disabled;$('#preview-track').textContent=sessionMenuOpen&&audio.playing?'Ⅱ PAUSE':'▶ ÉCOUTER';
+  $('#preview-track').disabled=$('#play-button').disabled;const heard=sessionMenuOpen&&audio.playing,preview=$('#preview-track');if(preview.getAttribute('aria-pressed')!==String(heard)){preview.setAttribute('aria-pressed',String(heard));preview.setAttribute('aria-label',heard?'Mettre en pause':'Écouter le morceau');preview.querySelector('use').setAttribute('href',heard?'#i-pause':'#i-play');}
   document.body.classList.toggle('auto-striking',autoEnabled);
   for(const button of $$('#playlist-list .playlist-action.listen'))button.textContent=sessionMenuOpen&&audio.playing&&button.closest('[data-track-id]').dataset.trackId===library.selected?'Ⅱ':'▶';
   $('#auto-strike').setAttribute('aria-pressed',String(autoEnabled));$('#auto-strike b').textContent=autoEnabled?(audio.playing?'ON':'PAUSE'):'OFF';
   $$('[data-impact-style]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.impactStyle===settings.impactStyle)));
   $('#technique-status').textContent='SON · '+IMPACT_STYLES[settings.impactStyle].label;
   $('#previous-track').disabled=!libraryLoaded||trackLoading||importing||!library.next(-1);$('#next-track').disabled=!libraryLoaded||trackLoading||importing||!library.next(1);
+  $('#menu-prev').disabled=$('#previous-track').disabled;$('#menu-next').disabled=$('#next-track').disabled;
   const boost=flow.active&&audio.playing,opponent=rival(state.stage),income=sessionPayout(state);
   $('#coins').textContent=format(state.coins);$('#shop-coins').textContent=format(state.coins);$('#session-coins').textContent=format(state.coins);
   const jump=incomeFlash&&performance.now()<incomeFlash.until?format(incomeFlash.from)+' → '+format(incomeFlash.to):null;
@@ -358,7 +384,7 @@ function updateUI(){
   $('.battle-card').classList.toggle('is-boss',opponent.boss);$('#rival-tag').textContent=opponent.hint;
   const count=students(state);
   $('#school-count').textContent=count;$('#school-count-label').textContent=count>1?'élèves':'élève';
-  $('#school-title').textContent=venueOf(state).name.toUpperCase();renderVenue();
+  $('#school-title').textContent=venueOf(state).name.toUpperCase();$('#hero-venue').textContent='Niveau '+state.venue+' · '+venueOf(state).name+(count?' · '+count+' élève'+(count>1?'s':''):'');renderVenue();
   renderGoal();
   document.body.classList.toggle('flowing',boost);document.body.classList.toggle('flow-ready',flow.armed);
   const charge=flow.active?flow.remaining/32*100:flow.charge;
@@ -587,7 +613,7 @@ $$('[data-dialog]').forEach(button => button.addEventListener('click', () => {
   dialog.showModal();
 }));
 $$('[data-close]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
-$$('dialog').forEach(dialog => dialog.addEventListener('click', event => {
+$$('dialog.modal').forEach(dialog => dialog.addEventListener('click', event => {
   if (event.target !== dialog) return;
   const box = dialog.getBoundingClientRect();
   if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) dialog.close();
@@ -818,7 +844,7 @@ function songEnergy(clock){
 }
 function frame(now){
   lastFrame=now;
-  if(!document.hidden){
+  if(!document.hidden&&!$('#duel').open){
     const boost=flow.active&&audio.playing,time=audio.audibleTime(now),clock=time-settings.latency/1000;
     if(autoEnabled&&audio.playing&&!sessionMenuOpen&&!shopOpen&&!$$('dialog[open]').length){const event=autoStriker.take(rhythm,clock);if(event)void act(now,event);}
     if(audio.playing)tickHold(clock,now);

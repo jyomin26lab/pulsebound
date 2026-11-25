@@ -24,7 +24,6 @@
 .dojo-track{display:block;min-height:44px;margin:4px 0;padding:0;background:none;color:var(--ink);font:800 13px var(--font);text-decoration:underline}
 .retry-import{display:inline-flex;align-items:center;min-height:44px;margin:6px 0 0;padding:0 14px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);font:800 13px var(--font);cursor:pointer}
 .retry-import[hidden]{display:none}
-.mode-choices small{display:block!important}
 .playlist-action.listen,.playlist-action.play{font:800 12px var(--font)}
 
 /* Auto strike: its name and its state (OFF / ON / PAUSE) are written, not only coloured. */
