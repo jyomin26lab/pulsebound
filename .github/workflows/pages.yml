@@ -23,5 +23,7 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+      # shortcut: GitHub liste parfois le site envoyé avec une seconde de retard ; passer à deux jobs si 15 s ne suffisent pas.
+      - run: sleep 15
       - id: deployment
         uses: actions/deploy-pages@v4
