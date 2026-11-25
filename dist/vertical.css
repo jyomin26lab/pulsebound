@@ -284,11 +284,11 @@
   .dojo-sidebar>.modal-heading,.dojo-sidebar .dojo-summary,.upgrade-shelf>.shelf-heading,.upgrade-shelf>p,.shop-title,.dojo-sidebar .modal-note{display:none}
   .dojo-sidebar{padding:12px 12px}
 }
-@media(max-width:700px){.mode-choices small{display:none}
+@media(max-width:700px){
   .density-choice{flex-direction:row;align-items:center;margin:10px 0}
   .density-choice select{max-width:62%;width:auto;min-height:40px}
   .daily-card{margin-bottom:6px}
-  .session-menu{padding-top:12px}
+
 }
 @media(max-width:700px){
   .game{padding-bottom:6px}

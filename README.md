@@ -14,7 +14,7 @@ Avant de commencer, composer sa playlist et écouter un titre, puis choisir **Ry
 
 En mode rythmique, les prochains coups défilent vers le grand repère fixe : frapper à leur arrivée. Une frappe juste avant la fenêtre perd la note et le combo : marteler ne remplace pas l’écoute. Détente garde moins de notes : un temps sur deux sur les titres importés. La précision construit le combo et le Flow ; les enchaînements de 8/16/32/64/128 coups ont leur retour visuel et sonore. En Freestyle, frapper librement, sans jugement de tempo ni notes imposées. Les gains sont pondérés par le temps couvert pour limiter l’avantage du spam ou des chansons très rapides.
 
-En **Duel**, Nova affronte son Ombre sur le morceau choisi, original ou importé : pendant ses phrases on pare (F, boucliers), pendant les nôtres on frappe (J, éclairs). L’Ombre glisse aussi des attaques surprises, annoncées une demi-seconde avant. Chaque note réussie rapporte 0,01 pièce ; une victoire paie une recette de séance multipliée par la note, une défaite n’en paie pas. Règles dans duel-core.mjs, vérifiées par check-duel.mjs.
+En **Duel**, Nova affronte son Ombre sur le morceau choisi, original ou importé : pendant ses phrases on pare (F, boucliers), pendant les nôtres on frappe (J, éclairs). L’Ombre glisse aussi des attaques surprises, annoncées une demi-seconde avant. Chaque note réussie rapporte 0,01 pièce ; une victoire paie une recette de séance multipliée par la note, une défaite n’en paie pas. Règles dans duel-core.mjs, vérifiées par check-duel.mjs. Un **maître** garde la sortie de chaque dojo : il se défie en duel une fois tout installé, sur un morceau d’au moins une minute. Couleurs, attaques et difficulté des seize maîtres sont dans masters.mjs.
 
 ## Musique et calage
 
@@ -29,7 +29,7 @@ L’analyse est heuristique : elle ne sépare pas les instruments et ne transcri
 
 ## Progression et ressenti
 
-Nova commence dans la Rue et monte 17 dojos, jusqu’à une planète alien : il équipe chaque salle objet par objet, puis l’agrandit. Frappes et sacs brisés rapportent des pièces ; chaque sac brisé amène un fan ; élèves et fans paient une recette à la fin de chaque morceau, multipliée par la note, dès le premier morceau. Le Sac d’occasion (3 pièces, dans la Rue) amène le premier élève. Transmission possible du niveau 2 au niveau 7, saut de dimension au niveau 17. Voir UX-PROGRESSION.md. Le Flow dure 32 temps et se fige en pause. Voir GAMEPLAY.md.
+Nova commence dans la Rue et monte 17 dojos, jusqu’à une planète alien : il équipe chaque salle objet par objet, bat le maître qui la garde, puis l’agrandit. Frappes et sacs brisés rapportent des pièces ; chaque sac brisé amène un fan ; élèves et fans paient une recette à la fin de chaque morceau, multipliée par la note, dès le premier morceau. Le Sac d’occasion (3 pièces, dans la Rue) amène le premier élève. Transmission possible du niveau 2 au niveau 7, saut de dimension au niveau 17. Voir UX-PROGRESSION.md. Le Flow dure 32 temps et se fige en pause. Voir GAMEPLAY.md.
 
 Les impacts PCM superposent attaque, grain et grave : trois variantes normales, trois critiques, légère variation de hauteur et limite de voix simultanées. Musique et impacts ont leurs volumes indépendants. Le décor est légèrement flouté dans un cache redessiné au chargement/redimensionnement ; personnage, sac et UI restent nets. La réduction des mouvements est respectée.
 
@@ -37,9 +37,9 @@ Il n’y a pas de gain pendant l’absence : on gagne en jouant. La progression 
 
 ## Vérifications
 
-Lancer avec Node chacun des 17 scripts `check*.mjs`. Ils couvrent aussi les revenus directs, le calage sans intro vide et l’intégrité des neuf PNG séparés. simulate-progression.mjs reproduit la simulation économique détaillée dans UX-PROGRESSION.md.
+Lancer avec Node chacun des 18 scripts `check*.mjs`. Ils couvrent aussi les revenus directs, le calage sans intro vide et l’intégrité des neuf PNG séparés. simulate-progression.mjs reproduit la simulation économique détaillée dans UX-PROGRESSION.md.
 
-Ils couvrent économie des dojos, duel, décompte de reprise, calibration de l’appareil, migration, recette de séance, Flow, DSP, pause/reprise/seek/fin, attaques irrégulières, silence, suivi des beats et changements de tempo, cartes manuelles, stockage de playlist/calage, annulation et enveloppes SFX. Les essais navigateur couvrent import multiple, cache après rechargement, titre suivant automatique, éditeur, lecture, inputs et affichage 320/390 px sans débordement. Ils ne mesurent pas la latence physique ni la transcription sur tous les morceaux.
+Ils couvrent économie des dojos, duel, maîtres, décompte de reprise, calibration de l’appareil, migration, recette de séance, Flow, DSP, pause/reprise/seek/fin, attaques irrégulières, silence, suivi des beats et changements de tempo, cartes manuelles, stockage de playlist/calage, annulation et enveloppes SFX. Les essais navigateur couvrent import multiple, cache après rechargement, titre suivant automatique, éditeur, lecture, inputs et affichage 320/390 px sans débordement. Ils ne mesurent pas la latence physique ni la transcription sur tous les morceaux.
 
 Le site publié est le dossier dist/ : chaque poussée sur main le met en ligne par GitHub Pages. Les images d’origine, que le jeu ne charge pas, sont dans art/. AUDIO-ARCHITECTURE.md décrit les modules, RHYTHM.md la méthode, UI-ART.md les icônes et ART-DIRECTION.md les illustrations. Les polices distantes sont facultatives.
 

@@ -1,3 +1,5 @@
+import { MASTERS } from './masters.mjs';
+
 export const SAVE_KEY = 'pulsebound-save-v1';
 export const UPGRADE_INFO = {
   power: { base: 3, growth: 1.28, max: 100 },
@@ -5,12 +7,12 @@ export const UPGRADE_INFO = {
   fury: { base: 24, growth: 1.5, max: 20 }
 };
 /*
- * Dojo ladder, from the street to an alien planet. Each venue has equipment to buy; once everything is bought the
- * master can move to the next venue. Money comes from hits, broken bags and the end-of-session takings.
+ * Dojo ladder, from the street to an alien planet. Each venue has equipment to buy; once everything is bought, its
+ * master must be beaten in a duel, then the next venue can be bought. Money comes from hits, broken bags and the end-of-session takings.
  * Tuning: venue prices grow by PRICE_GROWTH per level on Earth and ALIEN_PRICE_GROWTH on the alien planet,
- * takings by TAKINGS_GROWTH; DIFFICULTY scales every price. Check the result with simulate-progression.mjs.
+ * takings by TAKINGS_GROWTH; DIFFICULTY scales every price, ENTRY the price of moving in. Check the result with simulate-progression.mjs.
  */
-export const DIFFICULTY=1,PRICE_GROWTH=6.8,ALIEN_PRICE_GROWTH=3.9,TAKINGS_GROWTH=3.4;
+export const DIFFICULTY=1,ENTRY=.5,PRICE_GROWTH=6.8,ALIEN_PRICE_GROWTH=3.9,TAKINGS_GROWTH=3.4;
 const EARTH=[
   ['La Rue',[['bag','Sac d’occasion',1,.15],['speaker','Enceinte portable',0,.2]]],
   ['Salle délabrée',[['mats','Tapis de sol',2,.05],['poster','Posters de champions',0,.1],['windows','Fenêtres réparées',1,.1],['fan','Ventilateur',1,.1],['lockers','Vestiaires',2,.05]]],
@@ -24,11 +26,11 @@ const EARTH=[
 ];
 // Levels 10-17 retrace levels 1-8 on an alien planet.
 const LADDER=[...EARTH,...EARTH.slice(0,8).map(([name,items])=>[name==='La Rue'?'Rue alien':name+' alien',items.map(([id,label,count,ease])=>['alien-'+id,label+' alien',(name==='La Rue'?0:count)+8,ease])])];
-const SHARES=[.2,.35,.5,.7,1];// equipment cost as a share of the venue price
+const SHARES=[.2,.35,.5,.7,1];// equipment cost as a share of the venue's worth
 export const VENUES=LADDER.map(([name,items],index)=>{
-  const level=index+1,price=level===1?0:Math.round(25*PRICE_GROWTH**(Math.min(level,10)-2)*ALIEN_PRICE_GROWTH**Math.max(0,level-10)*DIFFICULTY);
-  return {level,name,price,fee:.5*TAKINGS_GROWTH**(level-1),tip:.02*TAKINGS_GROWTH**(level-1),art:'venues/'+String(level).padStart(2,'0')+'.webp',
-    items:items.map(([id,label,count,ease],i)=>({id,name:label,students:count,comfort:ease,art:'items/'+id+'.webp',cost:level===1?[3,6][i]*DIFFICULTY:Math.round(price*SHARES[i])}))};
+  const level=index+1,worth=level===1?0:Math.round(25*PRICE_GROWTH**(Math.min(level,10)-2)*ALIEN_PRICE_GROWTH**Math.max(0,level-10)*DIFFICULTY);
+  return {level,name,price:worth*ENTRY,fee:.5*TAKINGS_GROWTH**(level-1),tip:.02*TAKINGS_GROWTH**(level-1),art:'venues/'+String(level).padStart(2,'0')+'.webp',
+    items:items.map(([id,label,count,ease],i)=>({id,name:label,students:count,comfort:ease,art:'items/'+id+'.webp',cost:level===1?[3,6][i]*DIFFICULTY:Math.round(worth*SHARES[i])}))};
 });
 export const MAX_VENUE=VENUES.length;
 export function venueOf(s){return VENUES[Math.min(MAX_VENUE,Math.max(1,s.venue||1))-1];}
@@ -41,7 +43,24 @@ export function buyItem(s,id){
   s.coins-=item.cost;s.items.push(id);return true;
 }
 export function expandCost(s){return s.venue<MAX_VENUE?VENUES[s.venue].price:Infinity;}
-export function canExpand(s){return fullyEquipped(s)&&s.coins>=expandCost(s);}
+/*
+ * Masters (masters.mjs): s.masters counts those beaten, always in order and for good; s.tired is how many times the next
+ * one has won. Force and Critique weigh on the fight: each master has an advised level of Force.
+ */
+export const MAX_TIRED=4;
+export function masterOf(s){return MASTERS[s.venue-1]||null;}
+export function masterBeaten(s){return !masterOf(s)||s.venue<=s.masters;}
+export function canChallenge(s){return fullyEquipped(s)&&!masterBeaten(s);}
+// The level of Force that hits as hard as Nova does now: seals and boons count too.
+export function forceLevel(s){return Math.max(0,Math.round((attackPower(s)-8)/4));}
+export function masterEdge(s,master){return Math.max(.6,Math.min(1.5,Math.sqrt((8+4*forceLevel(s))/(8+4*master.force))));}
+/** A fight against a master is over. Returns true when the way to the next dojo has just opened. */
+export function settleMaster(s,level,victory){
+  if(level!==s.masters+1)return false;// an old master, for the pleasure
+  if(victory){s.masters=level;s.tired=0;return true;}
+  s.tired=Math.min(MAX_TIRED,s.tired+1);return false;
+}
+export function canExpand(s){return fullyEquipped(s)&&masterBeaten(s)&&s.coins>=expandCost(s);}
 export function expand(s){if(!canExpand(s))return false;s.coins-=expandCost(s);s.venue++;s.items=[];return true;}
 export const GRADE_TAKINGS={S:2,A:1.5,B:1.2,C:1};
 // End-of-session takings: fans tip, students pay their fee; the grade of the song multiplies it.
@@ -184,7 +203,7 @@ export function freshState(now = Date.now()) {
   return { version: 1, dojoLit: false, coins: 0, stage: 1, hp: enemyHealth(1), kills: 0,
     hits: 0, perfects: 0, dodges: 0, dodgesMissed: 0, bestCombo: 0, totalCoins: 0, totalDamage: 0,
     runCoins:0, highestStage:1, bosses:0, flows:0, seals:0, prestiges:0, achievements:[], grades:{}, daily:{lastDone:'',streak:0}, boons:{}, pendingBoons:0, perks:{}, sealsSpent:0,
-    venue:1, items:[], fans:0, dimension:0, upgrades: { power: 0, focus: 0, fury: 0 }, savedAt: now };
+    venue:1, items:[], fans:0, dimension:0, masters:0, tired:0, upgrades: { power: 0, focus: 0, fury: 0 }, savedAt: now };
 }
 export function rival(stage){
   // Every reinforced bag (each 5th) grants a boon pick, so the next one is always shown as a near goal.
@@ -237,8 +256,9 @@ export function judgeTiming(seconds, bpm, offset = 0, calibrationMs = 0, focus =
   const goodWindow = Math.min(145 + focus * 4, period * 1000 * 0.43);
   return { beat, error, grade: Math.abs(error) <= perfectWindow ? 'perfect' : Math.abs(error) <= goodWindow ? 'good' : 'miss' };
 }
+export function critChance(s) { return 0.05 + s.upgrades.fury * 0.025 + boon(s,'crit') * 0.04; }
 export function hitDamage(s, grade, combo, random = Math.random()) {
-  const critical = grade !== 'miss' && random < 0.05 + s.upgrades.fury * 0.025 + boon(s,'crit') * 0.04;
+  const critical = grade !== 'miss' && random < critChance(s);
   const multiplier = grade === 'perfect' ? 2.7 : grade === 'good' ? 1.4 : 0.25;
   return { damage: Math.round(attackPower(s) * multiplier * (1 + Math.min(combo, 50) * 0.025) * (critical ? 2 : 1)), critical };
 }
@@ -262,6 +282,7 @@ export function currentGoal(s){
   if(canJump(s))return {label:'Un portail s’ouvre',detail:'Saut de dimension : recettes ×2 pour toujours',current:1,target:1,action:'dojo'};
   const next=venueOf(s).items.filter(item=>!s.items.includes(item.id)).sort((a,b)=>a.cost-b.cost)[0];
   if(next)return {label:next.name,detail:venueOf(s).name,current:s.coins,target:next.cost,action:'dojo'};
+  if(!masterBeaten(s))return {label:'Battre '+masterOf(s).name,detail:venueOf(s).name,current:forceLevel(s),target:masterOf(s).force,action:'dojo',master:true};
   return {label:'Agrandir',detail:VENUES[s.venue].name,current:s.coins,target:expandCost(s),action:'dojo'};
 }
 export function beatAction(beat) { return beat >= 0 && beat % 8 === 7 ? 'dodge' : 'punch'; }
@@ -299,6 +320,10 @@ export function restoreState(raw, now = Date.now()) {
   if(Array.isArray(raw.items)){const ids=venueOf(s).items.map(item=>item.id);s.items=ids.filter(id=>raw.items.includes(id));}
   if(Number.isFinite(raw.fans)&&raw.fans>=0)s.fans=Math.min(1e15,raw.fans);
   if(Number.isInteger(raw.dimension)&&raw.dimension>=0)s.dimension=Math.min(1000,raw.dimension);
+  // Saves from before the masters: every dojo already opened, in this school or an earlier one, has none left to beat.
+  const opened=s.dimension?MAX_VENUE:Math.max(s.venue,...Object.entries({room:2,gym:3,renown:5,military:7,space:9,alien:10}).map(([id,level])=>s.achievements.includes(id)?level:1));
+  s.masters=Number.isInteger(raw.masters)?Math.max(s.venue-1,Math.min(MASTERS.length,raw.masters)):opened-1;
+  if(Number.isInteger(raw.tired))s.tired=Math.max(0,Math.min(MAX_TIRED,raw.tired));
   s.sealsSpent=Number.isInteger(raw.sealsSpent)?Math.max(0,Math.min(s.seals,raw.sealsSpent)):0;
   s.hp = Number.isFinite(raw.hp) && raw.hp > 0 ? Math.min(raw.hp, enemyHealth(s.stage)) : enemyHealth(s.stage);
   for (const key of Object.keys(UPGRADE_INFO)) {

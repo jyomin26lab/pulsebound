@@ -15,12 +15,8 @@
 #strike-button[data-judge=perfect],#mobile-strike[data-judge=perfect]{--judge:var(--timing)}
 #strike-button.judged[data-judge=perfect]::after{content:"★"}
 
-/* Entry menu: Play and My music side by side; listening stays on the song card. */
-.entry-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 4px}
-.entry-actions>button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;margin:0;padding:8px 10px;border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);color:var(--ink);font:900 italic 21px/1 var(--display)}
-.entry-actions .start-session{width:auto;background:var(--ember,#ed8541)}
-.entry-actions .music-button{background:var(--paper)}
-.entry-actions svg{width:22px;height:22px}
+/* Import and playlist actions. */
+
 .dojo-track{display:block;min-height:44px;margin:4px 0;padding:0;background:none;color:var(--ink);font:800 13px var(--font);text-decoration:underline}
 .retry-import{display:inline-flex;align-items:center;min-height:44px;margin:6px 0 0;padding:0 14px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);font:800 13px var(--font);cursor:pointer}
 .retry-import[hidden]{display:none}
@@ -193,7 +189,7 @@
 #recruit-slot,.shop-recruit{position:relative;isolation:isolate;overflow:hidden}
 @keyframes fx-glint{to{background-position:0 -31px,11px -34px}}
 @media(prefers-reduced-motion:no-preference){
-  body:not(.calm-fx) #goal-card.ready::after,body.in-session:not(.calm-fx) #recruit-slot.ready::after,body:not(.calm-fx) .shop-recruit:not(:disabled)::after{
+  body.in-session:not(.calm-fx) #goal-card.ready::after,body.in-session:not(.calm-fx) #recruit-slot.ready::after,body:not(.calm-fx) .shop-recruit:not(:disabled)::after{
     content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
     background-image:radial-gradient(circle,#fff 0 1.8px,transparent 2.4px),radial-gradient(circle,#fffbe0 0 1.2px,transparent 1.8px);
     background-size:37px 31px,23px 41px;background-position:0 0,11px 7px;

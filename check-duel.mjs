@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { gridBeats } from './dist/song-chart.mjs';
 import { RhythmMap } from './dist/rhythm.mjs';
-import { duelEvents, phaseAt, pulse, songFilter, freshDuel, settle, onPoints, won, NOVA_HP, RIVAL_HP, FLOW_MAX, SURPRISE_WARN } from './dist/duel-core.mjs';
+import { duelEvents, phaseAt, pulse, songFilter, freshDuel, masterDuel, settle, onPoints, won, NOVA_HP, RIVAL_HP, FLOW_MAX, SURPRISE_WARN } from './dist/duel-core.mjs';
+import { MASTERS } from './dist/masters.mjs';
+import { MAX_VENUE } from './dist/core.mjs';
+import { MOVES } from './dist/scene.mjs';
 
 let seed=7;const random=()=>(seed=(seed*1664525+1013904223)%4294967296)/4294967296;
 const grid=(bpm,duration)=>pulse(gridBeats(duration,{bpm,offset:0,segments:[]}));
@@ -65,4 +68,51 @@ const g=freshDuel();assert.ok(!settle(g,heavy[0],'good').broke&&g.nova<NOVA_HP,'
 const d=freshDuel();settle(d,suddenNote,'good');assert.ok(d.nova===NOVA_HP&&d.rival<RIVAL_HP,'Une surprise parée ouvre l’Ombre');settle(d,suddenNote,'miss');assert.ok(d.nova<NOVA_HP,'Une surprise ratée blesse');
 const done=freshDuel();done.over='ko-rival';assert.equal(settle(done,strikeNote,'perfect'),null,'Plus rien après le K.-O.');
 assert.equal(onPoints({...freshDuel(),rival:RIVAL_HP*.5,nova:NOVA_HP*.4}),'points-rival');
-console.log(events.length+' notes, alternance, '+events.filter(e=>e.surprise).length+' attaques surprises, coups lourds, Flow et équilibrage du duel validés.');
+// The masters: one per dojo to leave, each with its own way, playable at any tempo.
+assert.equal(MASTERS.length,MAX_VENUE-1);assert.equal(new Set(MASTERS.map(m=>m.name)).size,16);assert.equal(new Set(MASTERS.map(m=>JSON.stringify(m.color))).size,16);
+const list=(level,song=beats)=>duelEvents(song,{random,style:MASTERS[level-1].style}),count=(events,test)=>events.filter(test).length;
+for(const [i,m] of MASTERS.entries()){
+  assert.ok(m.style.moves.length>=3&&m.style.moves.every(move=>MOVES[move]),m.name+' a ses propres coups');
+  if(i)for(const key of ['force','toughness','hurt'])assert.ok(m[key]>MASTERS[i-1][key],'Chaque maître est plus dur que le précédent');
+  for(const bpm of [60,90,112,144,174,220]){
+    const events=list(m.level,grid(bpm,180)),map=new RhythmMap(events);
+    assert.ok(events.length>120&&events.every((e,n)=>e.index===n&&(!n||e.time>events[n-1].time)),m.name+' à '+bpm+' BPM : notes croissantes');
+    for(const e of events){
+      assert.ok(map.windows(e).perfect>=.06&&map.windows(e).good>=.08,m.name+' : fenêtres jouables à '+bpm+' BPM');
+      if(!e.surprise&&e.index&&!events[e.index-1].surprise&&events[e.index-1].type!==e.type)assert.ok(e.time-events[e.index-1].time>=.19,'Le temps de changer de main');
+    }
+    const heavies=events.filter(e=>e.heavy);for(const e of heavies)assert.ok(e.time-events[e.index-1].time>=e.step*1.5-1e-3,'Silence avant le coup lourd');
+  }
+}
+const byName=name=>MASTERS.find(m=>m.short===name).level;
+assert.ok(count(list(byName('Rouille')),e=>e.heavy)>=5&&count(list(byName('Bitume')),e=>e.heavy)<=2,'La brute a son coup lourd à chaque manche');
+assert.ok(count(list(byName('Néon')),e=>e.surprise)>2*count(list(byName('Marbre')),e=>e.surprise),'Les vifs surprennent bien plus');
+assert.ok(count(list(byName('Bambou')),e=>e.type==='parry'&&e.off)>count(list(byName('Bitume')),e=>e.type==='parry'&&e.off)+20,'Le contretemps se joue entre les temps');
+assert.equal(phaseAt(8,MASTERS[byName('Tempo')-1].style).type,'strike');assert.equal(phaseAt(8).type,'parry');
+assert.equal(count(list(1),e=>e.surprise&&e.round<3),0,'Le premier maître ne surprend pas avant la quatrième manche');
+// The same fight on any song, all along the song; Force, Critique and fatigue weigh on it, skill first.
+const duelWith=(level,judge,options={},song=beats)=>{
+  const events=list(level,song),s=masterDuel(events,MASTERS[level-1],options);let end=events.length,life=s.life;
+  for(const e of events){settle(s,e,judge(e),random);assert.ok(s.rival<=life);life=s.rival;if(s.over){end=e.index+1;break;}}
+  onPoints(s);return {...s,at:end/events.length};
+};
+const masterRate=(level,skill,options,song)=>Array.from({length:120},()=>duelWith(level,skill,options,song)).filter(won).length/120;
+for(const level of [1,8,16])for(const power of [1,1.5]){const s=duelWith(level,()=>'perfect',{power,critical:.5});assert.equal(s.over,'ko-rival');assert.ok(s.at>=.9,'Le maître tient jusqu’aux dernières notes ('+s.at.toFixed(2)+')');assert.equal(s.nova,NOVA_HP);}
+for(const level of [1,16])assert.equal(duelWith(level,()=>'miss').over,'ko-nova','Ne rien faire perd');
+const solid=skill(.6,.35),fair=skill(.35,.5),weak=skill(.15,.4),masher=skill(.05,.25);
+for(const [name,song] of [['Neon Ronin',beats],['court',grid(128,62)],['long',grid(128,300)],['lent',grid(70,200)]]){
+  const row=[1,4,8,12,16].map(level=>masterRate(level,fair,{},song));
+  console.log(('maîtres '+name).padEnd(19),'moyen aux niveaux 1 4 8 12 16 : '+row.map(r=>r.toFixed(2)).join(' '));
+  assert.ok(row[0]>.95&&row[2]>.85&&row[4]<.65,'Un joueur moyen avance, et le dernier maître lui résiste');
+  assert.ok(masterRate(16,solid,{},song)>.95,'Un bon joueur bat le dernier maître');
+}
+assert.ok(masterRate(1,weak)>.6,'Un débutant bat le premier maître');assert.ok(masterRate(2,masher)<.03&&masterRate(2,weak)<.3,'Marteler ne suffit pas');
+for(const level of [2,5,10])assert.ok(masterRate(level,weak,{tired:4})>.85,'Personne ne reste bloqué au niveau '+level);
+assert.ok(masterRate(16,fair,{tired:2})>.85&&masterRate(16,weak,{tired:4,power:1.5,critical:.2})>.85,'Même au bout');
+assert.ok(masterRate(11,fair,{power:1.4})-masterRate(11,fair,{power:.6})>.4,'La Force compte');
+const tired=masterDuel(events,MASTERS[4],{tired:2}),rested=masterDuel(events,MASTERS[4]);
+assert.ok(Math.abs(tired.life/rested.life-.8)<1e-9&&tired.hurt<rested.hurt,'Deux défaites : 20 % de vie en moins et des coups plus faibles');
+const crit=masterDuel(events,MASTERS[0],{critical:1}),calm=masterDuel(events,MASTERS[0]),blow=events.findLast(e=>e.type==='strike');
+settle(crit,{...blow,index:events.length},'good');settle(calm,{...blow,index:events.length},'good');
+assert.ok(Math.abs((crit.life-crit.rival)/(calm.life-calm.rival)-1.5)<1e-9,'Un coup critique frappe ×1,5');
+console.log(events.length+' notes, alternance, '+events.filter(e=>e.surprise).length+' attaques surprises, coups lourds, Flow et équilibrage du duel validés ; 16 maîtres, leurs styles, la Force, le Critique et la fatigue aussi.');

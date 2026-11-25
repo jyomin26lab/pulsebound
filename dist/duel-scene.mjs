@@ -7,11 +7,11 @@ function tinted(image,color){
   const c=document.createElement('canvas');c.width=c.naturalWidth=image.naturalWidth;c.height=c.naturalHeight=image.naturalHeight;
   const g=c.getContext('2d');g.drawImage(image,0,0);g.globalCompositeOperation='source-atop';g.fillStyle=color;g.fillRect(0,0,c.width,c.height);return c;
 }
-// The rival keeps Nova's drawing and shading, in violet only, so its pose reads as well as hers.
-function shadowed(image){
+// The rival keeps Nova's drawing and shading, in its own colours only (one for the top, one for the bottom), so its pose reads as well as hers.
+function shadowed(image,{hue,low=hue,sat,light}){
   const c=tinted(image,'#0000'),g=c.getContext('2d');
-  g.globalCompositeOperation='color';g.fillStyle='#6b4fb0';g.fillRect(0,0,c.width,c.height);
-  g.globalCompositeOperation='multiply';g.fillStyle='#b3a3d6';g.fillRect(0,0,c.width,c.height);
+  g.globalCompositeOperation='color';const cloth=g.createLinearGradient(0,c.height*.35,0,c.height*.75);cloth.addColorStop(0,`hsl(${hue} ${sat}% 50%)`);cloth.addColorStop(1,`hsl(${low} ${sat}% 50%)`);g.fillStyle=cloth;g.fillRect(0,0,c.width,c.height);
+  g.globalCompositeOperation='multiply';g.fillStyle=`hsl(${hue} ${sat}% ${light}%)`;g.fillRect(0,0,c.width,c.height);
   g.globalCompositeOperation='destination-in';g.drawImage(image,0,0);return c;
 }
 export class DuelScene extends DojoScene{
@@ -19,9 +19,13 @@ export class DuelScene extends DojoScene{
     super(canvas);
     this.rival=Object.create(this);this.rival.initState();// same stage, size and settings; its own strikes, particles and recoil
     this.rival.poses={};this.rival.flash={};this.flash={};this.rivalMove={};
-    for(const [id,image]of Object.entries(this.poses))image.addEventListener('load',()=>{
-      const shade=this.rival.poses[id]=shadowed(image);this.rival.flash[id]=tinted(shade,'#fff6e090');this.flash[id]=tinted(image,'#e0432f90');
-    });
+    for(const [id,image]of Object.entries(this.poses))image.addEventListener('load',()=>{this.flash[id]=tinted(image,'#e0432f90');if(this.color)this.shade(id,image);});
+  }
+  shade(id,image){const shade=this.rival.poses[id]=shadowed(image,this.color);this.rival.flash[id]=tinted(shade,'#fff6e090');}
+  /** The opponent's colour; drawings still loading get theirs as they arrive. */
+  dress(color){
+    if(this.color===color)return;this.color=color;
+    for(const [id,image]of Object.entries(this.poses))if(image.naturalWidth)this.shade(id,image);
   }
   resize(){
     super.resize();const L=this.layout,w=this.width;
