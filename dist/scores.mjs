@@ -1,7 +1,7 @@
 /**
  * The written scores of the three built-in songs: a section name, then its bars of 8 eighth notes.
  * 1 = every difficulty · 2 = Standard and Intense · 3 = Intense only · - = the note is held · . = rest
- * The synth reads them too (audio.mjs): no drums in a « silence », a snare on each note of a « roulement ».
+ * The music reads them too (music.mjs): its lead plays these notes, and a snare strikes each note of a « roulement ».
  */
 const WRITTEN={
   neon:`
@@ -56,9 +56,13 @@ const WRITTEN={
     final     1.213212 13221.22 1.213212 12221322
     fin       1------.`
 };
-export const SCORES=Object.fromEntries(Object.entries(WRITTEN).map(([id,text])=>[id,text.trim().split('\n').flatMap(line=>{
-  const [section,...bars]=line.trim().split(/\s+/);
-  return [...bars.join('')].map(mark=>({section,mark}));
-})]));
+/** Each eighth note: its section and mark, how many times this section has played before, and where it falls in it. */
+export const SCORES=Object.fromEntries(Object.entries(WRITTEN).map(([id,text])=>{
+  const takes={};
+  return [id,text.trim().split('\n').flatMap(line=>{
+    const [section,...bars]=line.trim().split(/\s+/),marks=[...bars.join('')],take=takes[section]=(takes[section]??-1)+1;
+    return marks.map((mark,eighth)=>({section,mark,take,eighth,size:marks.length}));
+  })];
+}));
 /** What is written on an eighth note, counted from the start of the song. A longer song starts its score again. */
 export function scoreStep(trackId,step){const score=SCORES[trackId];return score?.[step%score.length];}

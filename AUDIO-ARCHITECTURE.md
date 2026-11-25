@@ -6,7 +6,8 @@ JavaScript/Web Audio sans dépendance DSP. Le rythme ne s’obtient jamais en ac
 | --- | --- |
 | audio-clock.mjs | Transport depuis AudioContext.currentTime, piste ↔ DSP, pause et seek ; conversion du timestamp d’entrée vers la position audible via getOutputTimestamp, avec repli DSP. |
 | beat-conductor.mjs | Anticipation des beats/demi-beats, signaux beat, halfbeat, schedule, resync. |
-| audio.mjs | AudioBuffer ou synthèse, origine partagée avec l’horloge, mixage séparé, métronome et transport. La synthèse suit les sections manuelles. |
+| audio.mjs | AudioBuffer ou synthèse, origine partagée avec l’horloge, mixage séparé, métronome et transport. La synthèse suit les sections manuelles ; ses notes sont planifiées 300 ms d’avance pour survivre à une image lente. |
+| music.mjs | Musique des trois originaux : accords, basse, arpèges, batterie et mélodie écrits par section, et `Band`, l’orchestre qui joue une croche à la fois dans n’importe quel contexte audio (direct ou hors ligne). Il partage la réverbération des effets et s’arrête à la pause. |
 | audio-sfx.mjs | Impacts PCM en couches et normalisation temporelle Freestyle. |
 | analyze-song.mjs | Rééchantillonnage intégral mono 11 025 Hz et worker avec progression. |
 | bpm-worker.mjs | FFT, attaques, beats et forme d’onde hors du thread UI. |
@@ -39,7 +40,7 @@ En source:auto, l’offset translate beats et attaques ensemble. Les attaques pr
 
 ## Vérification et limites
 
-Dix scripts Node couvrent transport, conversions, une heure de DSP simulée, fin/replay/seek, signaux, onsets, tempo variable, cartes, stockage et économie. Les essais UI vérifient worker, cache après rechargement, calage enregistré, forme d’onde et mobile. Pas de mesure acoustique, Bluetooth ni campagne physique multi-navigateur.
+Les scripts Node `check*.mjs` couvrent transport, conversions, une heure de DSP simulée, fin/replay/seek, signaux, onsets, tempo variable, cartes, stockage, musique (la mélodie joue la partition note pour note) et économie. Les essais UI vérifient worker, cache après rechargement, calage enregistré, forme d’onde et mobile. Pas de mesure acoustique, Bluetooth ni campagne physique multi-navigateur.
 
 Références : [currentTime](https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/currentTime), [getOutputTimestamp](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/getOutputTimestamp), [suivi de beat libfmp](https://github.com/meinardmueller/libfmp/blob/master/libfmp/c6/c6s3_beat_tracking.py). Web Audio représente le traitement audio, sans mesurer directement la sortie acoustique. La calibration reste nécessaire selon le matériel.
 

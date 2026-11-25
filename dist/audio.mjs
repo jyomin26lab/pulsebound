@@ -1,13 +1,13 @@
-import { scoreStep } from './scores.mjs';
+import { Band } from './music.mjs';
 import { AudioClock } from './audio-clock.mjs';
 import { BeatConductor } from './beat-conductor.mjs';
 import { impactSamples, IMPACT_STYLES, reverbImpulse } from './audio-sfx.mjs';
 import { comboTier } from './scene.mjs';
 import { withDeadline } from './audio-import.mjs';
 export const TRACKS = {
-  neon: { title: 'Neon Ronin', genre: 'SYNTHWAVE', bpm: 112, root: 55, scale: [0, 0, 7, 10, 0, 3, 7, 5] },
-  chrome: { title: 'Chrome Rush', genre: 'ELECTRO', bpm: 144, root: 65.406, scale: [0, 0, 12, 7, 3, 3, 10, 7] },
-  after: { title: 'After Hours', genre: 'DOWNTEMPO', bpm: 90, root: 49, scale: [0, 7, 3, 10, 5, 12, 7, 3] }
+  neon: { title: 'Neon Ronin', genre: 'SYNTHWAVE', bpm: 112 },
+  chrome: { title: 'Chrome Rush', genre: 'ELECTRO', bpm: 144 },
+  after: { title: 'After Hours', genre: 'DOWNTEMPO', bpm: 90 }
 };
 for(const track of Object.values(TRACKS))track.duration=120;
 export class Soundtrack {
@@ -42,9 +42,10 @@ export class Soundtrack {
       // Effects skip the music compressor: a loud mastered song kept it engaged and squashed every hit down to the music's level.
       const sfxLimiter=this.ctx.createDynamicsCompressor();sfxLimiter.threshold.value=-2;sfxLimiter.ratio.value=20;sfxLimiter.connect(this.ctx.destination);
       this.effectsGain=this.ctx.createGain();this.effectsGain.gain.value=this.sfxVolume;this.effectsGain.connect(sfxLimiter);
-      // Room reverb on effects only (the player's music stays dry); the send follows the effects volume.
+      // Room reverb on effects (the player's music stays dry); the send follows the effects volume.
       this.reverb=this.ctx.createConvolver();const impulse=reverbImpulse(this.ctx.sampleRate),room=this.ctx.createBuffer(2,impulse[0].length,this.ctx.sampleRate);
       impulse.forEach((channel,index)=>room.getChannelData(index).set(channel));this.reverb.buffer=room;
+      this.musicRoom=this.ctx.createGain();this.musicRoom.gain.value=this.volume;this.musicRoom.connect(this.reverb);// the built-in songs share that room
       this.reverbSend=this.ctx.createGain();this.reverbSend.gain.value=.2;this.effectsGain.connect(this.reverbSend).connect(this.reverb).connect(sfxLimiter);
       const compressor = this.ctx.createDynamicsCompressor();
       compressor.threshold.value = -12;
@@ -54,7 +55,7 @@ export class Soundtrack {
         if(this.metronome&&this.playing&&event.type==='beat')this.tone(event.contextTime,event.index%4===0?1400:1000,.035,'sine',.13);
       });
       this.refreshBeats();
-      this.noise = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.2, this.ctx.sampleRate);
+      this.noise = this.ctx.createBuffer(1, this.ctx.sampleRate * 2, this.ctx.sampleRate);
       const data = this.noise.getChannelData(0);
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
       this.impactBanks=Object.fromEntries(Object.keys(IMPACT_STYLES).map(style=>[style,Array.from({length:12},(_,i)=>{const pcm=impactSamples(this.ctx.sampleRate,{critical:i%6>=3,perfect:i>=6,variant:i%3,seed:81+(i%3)*733,style});const buffer=this.ctx.createBuffer(1,pcm.length,this.ctx.sampleRate);buffer.getChannelData(0).set(pcm);return buffer;})]));
@@ -132,7 +133,7 @@ export class Soundtrack {
       this.source.start(startAt, this.position);
     }
     this.nextStep=this.conductor.lowerBound(this.position);
-    if(!this.buffer&&this.trackId!=='silent'){this.schedule();this.scheduler = setInterval(() => this.schedule(), 25);}
+    if(!this.buffer&&this.trackId!=='silent'){this.band=new Band(this.ctx,this.bus,this.trackId,{noise:this.noise,room:this.musicRoom});this.schedule();this.scheduler = setInterval(() => this.schedule(), 25);}
     this.conductor.start();
   }
   pause() {
@@ -149,6 +150,7 @@ export class Soundtrack {
       this.source.disconnect();
       this.source = null;
     }
+    this.band?.stop();this.band=null;
     this.bus?.disconnect();
     this.onEnd?.({reason:'paused'});
   }
@@ -173,7 +175,7 @@ export class Soundtrack {
   }
   setVolume(value) {
     this.volume = value;
-    if (this.musicGain) this.musicGain.gain.setTargetAtTime(value, this.ctx.currentTime, .03);
+    if (this.musicGain) for(const node of [this.musicGain,this.musicRoom])node.gain.setTargetAtTime(value, this.ctx.currentTime, .03);
   }
   setSfxVolume(value){this.sfxVolume=Math.max(0,Math.min(1,value));if(this.effectsGain)this.effectsGain.gain.setTargetAtTime(this.sfxVolume,this.ctx.currentTime,.02);}
   tone(time, frequency, duration, type, volume, destination = this.bus) {
@@ -189,51 +191,13 @@ export class Soundtrack {
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
     return osc;
   }
-  drum(time, kind, accent = false) {
-    if (kind === 'kick') {
-      const osc = this.tone(time, 135, .23, 'sine', .55);
-      osc.frequency.exponentialRampToValueAtTime(42, time + .17);
-      return;
-    }
-    const source = this.ctx.createBufferSource(), filter = this.ctx.createBiquadFilter(), gain = this.ctx.createGain();
-    source.buffer = this.noise;
-    filter.type = 'highpass';
-    filter.frequency.value = kind === 'snare' ? 1100 : 6500;
-    const duration = kind === 'snare' ? .14 : .045;
-    gain.gain.setValueAtTime(kind === 'snare' ? .18 : accent ? .12 : .045, time);
-    gain.gain.exponentialRampToValueAtTime(.001, time + duration);
-    source.connect(filter).connect(gain).connect(this.bus);
-    source.start(time);
-    source.stop(time + duration);
-    source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
-    if (kind === 'snare') this.tone(time, 175, .1, 'triangle', .1);
-  }
   schedule() {
     if (!this.playing||this.buffer) return;
     if(this.time()>=this.duration){this.pause();this.position=0;this.clock.stop();this.conductor.reset(0);this.onEnd?.({reason:'ended'});return;}
     let event;
-    while ((event=this.conductor.event(this.nextStep))&&event.contextTime < this.ctx.currentTime + .12) {
+    while ((event=this.conductor.event(this.nextStep))&&event.contextTime < this.ctx.currentTime + .3) {// a slow frame must not drop notes
       const time=event.contextTime,stepLength=(this.conductor.event(this.nextStep+1)?.songTime??event.songTime+30/this.bpm)-event.songTime;
-      const step = ((this.nextStep % 32) + 32) % 32;
-      if (time >= this.ctx.currentTime&&event.songTime<this.duration) {
-        if (!this.buffer) {
-          const track = TRACKS[this.trackId], score = scoreStep(this.trackId, this.nextStep), note = '123'.includes(score.mark);
-          // The arrangement follows the written score: the drums leave a silence, the snare plays the roll, the hat marks the notes.
-          if (score.section !== 'silence') {
-            if (step % 4 === 0 || (this.trackId === 'chrome' && step % 8 === 6)) this.drum(time, 'kick');
-            if (step % 4 === 2 || (score.section === 'roulement' && note)) this.drum(time, 'snare');
-            this.drum(time, 'hat', note);
-          }
-          const progression = [0, -2, 3, -5][Math.floor(step / 8)];
-          const bass = track.root * 2 ** (progression / 12);
-          if (step % 2 === 0) this.tone(time, bass, stepLength * 1.2, 'triangle', .22);
-          const melody = bass * 4 * 2 ** (track.scale[step % 8] / 12);
-          if (this.trackId !== 'after' || step % 2 === 0 || note) this.tone(time, melody, stepLength * .72, 'triangle', .075);
-          if (step % 8 === 0) {
-            for (const semitone of [0, 3, 7]) this.tone(time, bass * 2 * 2 ** (semitone / 12), stepLength * 7.5, 'sine', .035);
-          }
-        }
-      }
+      if (time >= this.ctx.currentTime&&event.songTime<this.duration) this.band.play(this.nextStep,time,stepLength);
       this.nextStep++;
     }
   }
